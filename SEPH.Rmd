@@ -235,6 +235,158 @@ ggplot(plotdata, aes(x=short,y=Value)) +
   scale_y_continuous(limits=c(0,1400),breaks=pretty_breaks(n=8),labels=dollar,expand=c(0,0)) +
 	labs(x="",y="Dollars per Week",title=paste0("Average Weekly Earnings, by Province (",thismonth,")"),
 		subtitle=paste("Source: CANSIM",sourcetable),caption="Graph by @trevortombe")
+
+startdate="Jan 2011"
+plotdata<-seph %>%
+  filter(Estimate=="Average weekly earnings including overtime for all employees" &
+                  NAICS=="Industrial aggregate excluding unclassified businesses" & Ref_Date>=startdate &
+           !(GEO %in% c("Nunavut","Northwest Territories","Yukon")))
+ggplot(plotdata,aes(Ref_Date,Value,group=GEO))+
+	geom_line(size = 1, color="gray") +
+  geom_line(data=plotdata %>% filter(GEO %in% c("Alberta","Saskatchewan","Canada","Newfoundland and Labrador")),
+            aes(Ref_Date,Value,group=GEO,color=GEO), size = 2) +
+	mytheme +
+	scale_colour_brewer(name="",palette="Set1") +
+	scale_y_continuous(limit=c(700,1200),breaks=pretty_breaks(n=10),labels=dollar) +
+	scale_x_yearmon(format = "%Y",n=8) +
+	annotate(geom="text", x=2016, y=770,hjust=0, label="All Other Provinces",color="grey70",size=4,fontface="bold") +
+	labs(x="",y="Dollars",title=paste("Average Weekly Earnings,",startdate,"to",today),
+		subtitle=paste("Source: CANSIM",sourcetable),caption="Graph by @trevortombe")
+
+ggplot(plotdata %>% filter(GEO=="Alberta"),aes(Ref_Date,Value))+
+  annotate("rect",xmin=as.numeric(as.yearmon("Oct 2014")), xmax=as.numeric(as.yearmon("Oct 2016")), 
+           ymin=-Inf, ymax=+Inf, alpha=0.2, fill="dodgerblue")+
+  annotate("text",x=2015.71, y=Inf, vjust=1.25,label="Recession",color="black",size=3,fontface="italic")+
+  geom_line(size=2,color="firebrick") +
+  geom_point(data=plotdata %>% filter(GEO=="Alberta",Ref_Date==max(Ref_Date)),size=3,color="firebrick")+
+  mytheme +
+  scale_y_continuous(labels=dollar,expand=c(0,0),limit=c(1000,1200)) +
+  scale_x_yearmon(format = "%Y",breaks=seq(2011,2018)) +
+  labs(x="",y="Dollars",title=paste("Average Weekly Earnings in Alberta,",startdate,"to",today),
+       subtitle=paste("Source: CANSIM",sourcetable),caption="Graph by @trevortombe")
+
+plotdata<-seph %>%
+  filter(Estimate=="Average weekly earnings including overtime for all employees" & GEO %in% c("Canada","Alberta") &
+           NAICS=="Industrial aggregate excluding unclassified businesses") %>%
+  group_by(GEO) %>%
+  mutate(change=Value/lag(Value,12)-1) %>%
+  filter(Ref_Date>="Jan 2012")
+ggplot(plotdata,aes(Ref_Date,change,group=GEO,color=GEO))+
+  annotate("rect",xmin=as.numeric(as.yearmon("Oct 2014")), xmax=as.numeric(as.yearmon("Oct 2016")), 
+           ymin=-Inf, ymax=+Inf, alpha=0.2, fill="dodgerblue")+
+  annotate("text",x=2015.71, y=max(pretty(plotdata$change)), hjust=0.5, 
+           label="AB Recession",color="black",size=3,fontface="italic")+
+  geom_line(size=2) +
+	geom_hline(aes(yintercept=0), colour="black", size=1) +
+	mytheme +
+  theme(legend.position = c(0.9,0.25))+
+	scale_colour_brewer(name="",labels=c("Alberta","Canada"),palette="Set1") +
+	scale_y_continuous(breaks=pretty_breaks(n=10),labels=percent) +
+	scale_x_yearmon(format = "%b\n%Y",n=8) +
+	labs(x="",y="Year-over-Year % Change",title="Change in Average Weekly Earnings (YoY %)",
+		subtitle=paste("Source: CANSIM",sourcetable),caption="Graph by @trevortombe")
 ```
 
+# Oil and Gas Detail
+
+```{r oil and gas}
+jobdetailed<-getTABLE("14100201")
+plotdata<-jobdetailed %>%
+  filter(GEO=="Alberta" & Type.of.employee=="All employees" &
+           North.American.Industry.Classification.System..NAICS. %in% c("Oil and gas extraction",
+                        "Mining and quarrying (except oil and gas)",
+                        "Support activities for mining, and oil and gas extraction")) %>%
+  rename(NAICS=North.American.Industry.Classification.System..NAICS.) %>%
+  mutate(NAICS=replace(NAICS,NAICS=="Mining and quarrying (except oil and gas)","Mining and quarrying"),
+         NAICS=replace(NAICS,NAICS=="Support activities for mining, and oil and gas extraction","Support activities"),
+         Ref_Date=as.yearmon(Ref_Date,"%Y/%m"))
+ggplot(plotdata %>% filter(Ref_Date>="Jan 2013"),aes(x=Ref_Date,y=Value,group=NAICS,color=NAICS)) +
+  annotate("rect",xmin=as.numeric(as.yearmon("Oct 2014")), xmax=as.numeric(as.yearmon("Oct 2016")), 
+           ymin=-Inf, ymax=+Inf, alpha=0.2, fill="dodgerblue")+
+  annotate("text",x=2015.71, y=max(pretty(plotdata$Value)), hjust=0.5, 
+           label="AB Recession",color="black",size=3,fontface="italic")+
+  geom_line(size=2) +
+	geom_hline(aes(yintercept=0), colour="black", size=1) +
+	mytheme +
+	scale_colour_brewer(name="",palette="Set1") +
+	scale_y_continuous(breaks=pretty_breaks(n=10),labels=comma) +
+	scale_x_yearmon(format="%Y") +
+	labs(x="",y="Persons",title="Payroll Employment in Alberta Mining, Oil and Gas",
+		subtitle="Source: CANSIM 281-0023",caption="Graph by @trevortombe")
+```
+
+# Diffusion Index
+
+```{r diffusion}
+test<-jobdetailed %>%
+  filter(!(North.American.Industry.Classification.System..NAICS. %in% c("Industrial aggregate including unclassified businesses",
+                                                                        "Industrial aggregate excluding unclassified businesses",
+                                                                        "Goods producing industries","Manufacturing",
+                                                                        "Non-durable goods","Durable goods",
+                                                                        "Service producing industries","Trade")),
+         Type.of.employee=="All employees",GEO=="Alberta") %>%
+  group_by(GEO,North.American.Industry.Classification.System..NAICS.) %>%
+  arrange(GEO,North.American.Industry.Classification.System..NAICS.) %>%
+  mutate(grow=Value>lag(Value,12)) %>%
+  filter(!is.na(grow)) %>%
+  group_by(GEO,Ref_Date) %>%
+  summarise(share=mean(grow)) %>%
+  filter(Ref_Date>="Jan 2005")
+ggplot(test,aes(Ref_Date,share))+geom_line(size=2,color="firebrick")+
+  geom_hline(yintercept=0.5,size=1)+
+  mytheme+
+  scale_y_continuous(label=percent)+
+  scale_x_continuous(breaks=pretty_breaks(n=6))+
+  labs(x="",y="Per Cent",
+       title="The Breadth of Alberta's Jobs Recovery (a `Diffusion Index`)",
+       subtitle="Displays the share of disaggregated NAICS sectors with higher payroll employment than 12 months prior.
+When above the black line, more sectors are expanding than shrinking. Below the line, more sectors are shrinking than expanding.
+Source: Own calculations from Statistics Canada 14-10-0201. Note: I exclude high-level aggregates, but some double counting remains.",
+       caption="Graph by @trevortombe")
+```
+
+# Vacancy-to-Unemployment
+
+```{r vacancy_data}
+vanunemp<-getTABLE("14100226")
+```
+
+```{r vacancy_plots}
+plotdata<-vanunemp %>%
+  filter(Job.vacancy.statistics=="Unemployment-to-job vacancies ratio",
+         North.American.Industry.Classification.System..NAICS.=="All unemployed",
+         GEO %in% c("Canada","Alberta","Saskatchewan"))
+ggplot(plotdata,aes(Ref_Date,Value,group=GEO,color=GEO)) +
+  annotate("rect",xmin=as.numeric(as.yearmon("Oct 2014")), xmax=as.numeric(as.yearmon("Oct 2016")), 
+           ymin=0, ymax=+Inf, alpha=0.2, fill="dodgerblue")+
+  annotate("text",x=2015.71, y=Inf, vjust=1, hjust=0.5, 
+           label="AB Recession",color="black",size=3,fontface="italic")+
+  geom_line(size=2) +
+  geom_point(data=plotdata %>% filter(Ref_Date==max(Ref_Date)),size=4,show.legend = F)+
+  geom_hline(aes(yintercept=0), colour="black", size=1) +
+  geom_text(data=plotdata[plotdata$Ref_Date==max(vanunemp$Ref_Date),],
+            aes(x=Ref_Date,y=Value,label=Value,color=GEO,group=GEO),nudge_x=0.25,vjust=-0.25,
+            fontface="bold",size=4,show.legend=F) +
+  mytheme +
+  scale_colour_brewer(name="",palette="Set1") +
+  scale_y_continuous(breaks=pretty_breaks(n=10),expand=c(0,0),limit=c(0,9)) +
+  scale_x_yearmon(limit=c(NA,today+1/2),format = "%Y") +
+  labs(x="",y="Workers per Vacancy",title="Unemployed Workers per Job Vacancy",
+       subtitle="Source: Statistics Canada data table 14-10-0226",caption="Graph by @trevortombe")
+plotdata<-vanunemp %>%
+  filter(Job.vacancy.statistics=="Unemployment-to-job vacancies ratio",
+         North.American.Industry.Classification.System..NAICS.=="All unemployed") %>%
+  filter(Ref_Date==max(Ref_Date) | Ref_Date==(max(Ref_Date)-1)) %>%
+  left_join(provnames,by="GEO") %>%
+  filter(!(short %in% c("CAN","NU","YT","NT")) & !is.na(short))
+ggplot(plotdata, aes(x=short,y=Value,group=as.character(Ref_Date),fill=as.character(Ref_Date))) +
+  geom_col(position="dodge") +
+  geom_hline(aes(yintercept=0), colour="black", size=1) +
+  mythemebar+
+  theme(legend.position = c(0.1,0.8))+
+  scale_fill_brewer(name="",palette="Set1") +
+  scale_y_continuous(breaks=pretty_breaks(n=10),expand=c(0,0)) +
+  labs(x="",y="Unemployed per Vacancy",title="Unemployed Workers per Job Vacancy",
+       subtitle="Source: Statistics Canada data table 14-10-0226",caption="Graph by @trevortombe")
+```
 
