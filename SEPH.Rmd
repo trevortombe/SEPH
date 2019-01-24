@@ -1,0 +1,240 @@
+---
+title: "Survey of Employment, Payrolls and Hours"
+author: "Trevor Tombe"
+date: "January 2019"
+output:
+  html_document:
+    includes:
+      after_body: footer.html
+    theme: spacelab
+    toc: yes
+    toc_float: yes
+  word_document:
+    toc: yes
+  pdf_document:
+    toc: yes
+always_allow_html: yes
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+knitr::opts_chunk$set(message=F, warning=F,fig.width = 8,fig.height = 4.5,fig.align="center",cache=TRUE,echo=F)
+
+```
+
+```{r load data, include=F}
+source("core.R")
+
+# Fetches Latest SEPH Data
+seph<-getTABLE("14100223")
+seph<-seph %>% rename(NAICS=North.American.Industry.Classification.System..NAICS.)
+sourcetable<-"Statistics Canada table 14-10-0223"
+today=max(seph$Ref_Date) # the latest month in the data
+
+# Constructs Employment Data
+sephemp<-seph %>%
+  filter(Estimate=="Employment for all employees",
+         NAICS=="Industrial aggregate including unclassified businesses")
+
+today=max(seph$Ref_Date)
+thismonth=as.character(today)
+lastmonth=as.character(today-1/12)
+lastyear=as.character(today-1)
+```
+
+<style>
+div.blue { background-color:#e6f0ff; border-radius: 5px; padding: 20px;}
+</style>
+<div class = "blue">
+Each month Statistics Canada releases comprehensive data on the state of Canada's labour markets. The Survey of Employment, Payroll and Hours is based on firm-level administrative payroll data. This is distinct from the Labour Force Survey, which is another important source of labour market information.
+
+This page summarizes all of the latest results from that data.
+</div>
+
+# Change in Employment, by Province {.tabset .tabset-fade}
+Displays the change in payroll employment and employment rates. First, since the start of Alberta's recession. Then compares provinces.
+
+## Alberta
+
+```{r growth}
+startdate="Oct 2014"
+plotdata<-sephemp %>%
+  filter(Ref_Date>=startdate & GEO=="Alberta") %>%
+  group_by(GEO) %>%
+  mutate(change=Value-max(Value*(Ref_Date==startdate)))
+ggplot(plotdata,aes(Ref_Date,change/1000))+
+  geom_line(size=2,color="firebrick") +
+  geom_point(data=plotdata %>% filter(Ref_Date==max(Ref_Date)),size=4,color="firebrick")+
+	geom_hline(aes(yintercept=0), colour="black", size=1) +
+  geom_text(data=plotdata[plotdata$Ref_Date==max(plotdata$Ref_Date),],
+            aes(x=Ref_Date,y=change/1000,label=paste(round(change/1000),"k",sep="")),
+            hjust=0,vjust=-0.5,fontface="bold",size=5,color="firebrick") +
+  mytheme+
+  scale_y_continuous(breaks=pretty_breaks(n=8)) +
+  scale_x_yearmon(limit=c(2014.75,max(plotdata$Ref_Date)+1/12),breaks=pretty_breaks(n=8),format = "%b\n%Y") +
+	labs(x="",y="Thousands of Jobs",title=paste("Change in",plotdata$GEO[1],"Payroll Jobs Since",startdate),
+		subtitle="Note: The 2015-16 recession started in October 2014. Source: Statistics Canada table 14-10-0223",caption="Graph by @trevortombe")
+
+province<-"Alberta"
+lfsdata<-fromJSON("http://economicdashboard.alberta.ca/Download/DownloadFile?extension=JSON&requestUrl=http%3A%2F%2Feconomicdashboard.alberta.ca%2Fapi%2FEmployment")
+startdate="Dec 2014"
+plotdata <- lfsdata %>%
+  mutate(Ref_Date=as.yearmon(as.Date(When))) %>%
+  filter(Ref_Date>=startdate,Characteristic=="Employment") %>%
+  select(Ref_Date,emp=Alberta) %>%
+  mutate(change=(emp-emp[1]),
+         Group="Labour Force Survey ('Employment')") %>%
+  bind_rows(plotdata<-sephemp %>%
+              filter(Ref_Date>=startdate & GEO=="Alberta") %>%
+              group_by(GEO) %>%
+              mutate(change=Value-max(Value*(Ref_Date==startdate))) %>% 
+              mutate(Group="Payroll Data ('Jobs')") %>% select(Ref_Date,change,Group))
+ggplot(plotdata,aes(Ref_Date,change/1000,group=Group,color=Group))+
+  geom_hline(yintercept=0,size=1) +
+  geom_line(size=2,lineend="round") +
+	mytheme+
+	scale_colour_brewer(name="",palette="Set1") +
+	scale_y_continuous(breaks=pretty_breaks(n=8)) +
+  scale_x_yearmon(breaks=pretty_breaks(n=8),format = "%b\n%Y") +
+  labs(x="",y="Thousands of Persons",title=paste("Change in Alberta Employment Since",startdate),
+		subtitle=paste("Source: Own calculations from Statistics Canada data table 14-10-0287 and",sourcetable),caption="Graph by @trevortombe")
+
+```
+
+```{r level in Alberta}
+startdate<-"Jan 2012"
+plotdata<-sephemp %>%
+  filter(Ref_Date>=startdate & GEO=="Alberta")
+ggplot(plotdata,aes(Ref_Date,Value/1000))+
+  annotate("rect",xmin=as.numeric(as.yearmon("Oct 2014")), xmax=as.numeric(as.yearmon("Oct 2016")), 
+           ymin=-Inf, ymax=+Inf, alpha=0.2, fill="dodgerblue")+
+  annotate("text",x=2015.71, y=Inf, vjust=1,
+           label="Recession",color="black",size=3,fontface="italic")+
+  geom_line(size=2,color="firebrick") +
+  geom_point(data=plotdata %>% filter(Ref_Date==max(Ref_Date)),size=3,color="firebrick")+
+  mytheme+
+  scale_y_continuous(breaks=pretty_breaks(n=8),label=comma) +
+  scale_x_yearmon(breaks=pretty_breaks(n=8),format = "%Y") +
+  labs(x="",y="Thousands of Jobs",title=paste("Total Payroll Employment in",plotdata$GEO),
+       subtitle=paste("Source: CANSIM",sourcetable),caption="Graph by @trevortombe")
+```
+
+## All Provinces
+```{r all provinces}
+startdate="Oct 2014"
+plotdata<-sephemp %>%
+  filter(Ref_Date>=startdate & GEO!="Yukon" & GEO!="Northwest Territories" & GEO!="Canada" & GEO!="Nunavut") %>%
+  group_by(GEO) %>%
+  mutate(change=Value/Value[1]-1)
+ggplot() +
+	geom_line(size=1,show.legend=FALSE) +
+	geom_line(data=plotdata[(plotdata$GEO!="Alberta" & plotdata$GEO!="Canada"),], aes(x=Ref_Date, y=change,group=GEO), size = 1, color="gray") +
+	geom_line(data=plotdata[plotdata$GEO=="British Columbia",], aes(x=Ref_Date, y=change), size = 2, color="royalblue4") +
+	geom_line(data=plotdata[plotdata$GEO=="Alberta",], aes(x=Ref_Date, y=change), size = 2, color="firebrick") +
+  geom_line(data=plotdata[plotdata$GEO=="Saskatchewan",], aes(x=Ref_Date, y=change), size = 2, color="darkgreen") +
+  geom_hline(aes(yintercept=0), colour="black", size=1) +
+  mytheme+
+  scale_y_continuous(breaks=pretty_breaks(n=8),label=percent) +
+  scale_x_yearmon(breaks=pretty_breaks(n=8),format = "%b\n%Y") +
+  labs(x="",y="Per Cent Change (%)",title=paste("Change in Payroll Jobs in Canada,",startdate,"to",today),
+		subtitle=paste("Source: CANSIM",sourcetable),caption="Graph by @trevortombe") +
+	annotate(geom="text", x=2016.25, y=.07, label="British Columbia",color="royalblue4",size=3,fontface="bold") +
+	annotate(geom="text", x=2016.75, y=-.07, label="Alberta",color="firebrick",size=3,fontface="bold") +
+  annotate(geom="text", x=2016.5, y=-.025, label="Saskatchewan",color="darkgreen",size=3,fontface="bold") +
+  annotate(geom="text", x=2015.25, y=.04, label="All Others",color="grey60",size=3,fontface="bold")
+```
+
+# By Sector
+Growth in employment, by sector.
+
+```{r by sector}
+plotdata<-as_tibble(seph) %>%
+  filter(GEO=="Alberta" & Ref_Date>="Jan 2016" & 
+           !(NAICS %in% c("Industrial aggregate including unclassified businesses",
+                          "Industrial aggregate excluding unclassified businesses",
+                          "Goods producing industries","Service producing industries",
+                          "Durable goods","Non-durable goods","Trade"))) %>%
+  select(Ref_Date,Estimate,NAICS,Value) %>%
+  mutate(
+    NAICS=replace(NAICS,NAICS=="Administrative and support, waste management and remediation services","Admin Support & Waste"),
+    NAICS=replace(NAICS,NAICS=="Other services (except public administration)","Other Service"),
+    NAICS=replace(NAICS,NAICS=="Mining, quarrying, and oil and gas extraction","Mining/Oil/Gas"),
+    NAICS=replace(NAICS,NAICS=="Forestry, logging and support","Forestry"),
+    NAICS=replace(NAICS,NAICS=="Accommodation and food services","Hotel/Restaurants"),
+    NAICS=replace(NAICS,NAICS=="Arts, entertainment and recreation","Arts, enter., rec."),
+    NAICS=replace(NAICS,NAICS=="Professional, scientific and technical services","Professional/Scientific"),
+    NAICS=replace(NAICS,NAICS=="Real estate and rental and leasing","Real Estate"),
+    NAICS=replace(NAICS,NAICS=="Transportation and warehousing","Transport/Storage"),
+    NAICS=replace(NAICS,NAICS=="Information and cultural industries","Information/Culture"),
+    NAICS=replace(NAICS,NAICS=="Health care and social assistance","Health/Social"),
+    NAICS=replace(NAICS,NAICS=="Management of companies and enterprises","Mgmt of Companies")
+    ) %>%
+  arrange(Estimate,NAICS,Ref_Date) %>%
+  group_by(Estimate,NAICS) %>%
+  mutate(change=Value-lag(Value,12))
+ggplot(filter(plotdata,Estimate=="Employment for all employees" & Ref_Date==max(Ref_Date)),
+       aes(reorder(NAICS,change),change)) +
+  geom_bar(stat="identity",fill="dodgerblue3") +
+  geom_hline(yintercept=0,size=1)+
+  coord_flip() +
+  mythemebarflip+
+  scale_y_continuous(breaks=pretty_breaks(n=6),label=comma)+
+  labs(x="",y="Number of Payroll Jobs",
+       title=paste("Change in Alberta's Payroll Jobs,",lastyear,"to",thismonth),
+       subtitle="Source: Statistics Canada data table 14-10-0223.",caption="Graph by @trevortombe.")
+
+plotdata<-as_tibble(seph) %>%
+  filter(GEO=="Alberta" & Ref_Date>="Jan 2016" & 
+           !(NAICS %in% c("Industrial aggregate including unclassified businesses",
+                          "Industrial aggregate excluding unclassified businesses",
+                          "Goods producing industries","Service producing industries",
+                          "Durable goods","Non-durable goods","Trade"))) %>%
+  select(Ref_Date,Estimate,NAICS,Value) %>%
+  mutate(
+    NAICS=replace(NAICS,NAICS=="Administrative and support, waste management and remediation services","Admin Support & Waste"),
+    NAICS=replace(NAICS,NAICS=="Other services (except public administration)","Other Service"),
+    NAICS=replace(NAICS,NAICS=="Mining, quarrying, and oil and gas extraction","Mining/Oil/Gas"),
+    NAICS=replace(NAICS,NAICS=="Forestry, logging and support","Forestry"),
+    NAICS=replace(NAICS,NAICS=="Accommodation and food services","Hotel/Restaurants"),
+    NAICS=replace(NAICS,NAICS=="Arts, entertainment and recreation","Arts, enter., rec."),
+    NAICS=replace(NAICS,NAICS=="Professional, scientific and technical services","Professional/Scientific"),
+    NAICS=replace(NAICS,NAICS=="Real estate and rental and leasing","Real Estate"),
+    NAICS=replace(NAICS,NAICS=="Transportation and warehousing","Transport/Storage"),
+    NAICS=replace(NAICS,NAICS=="Information and cultural industries","Information/Culture"),
+    NAICS=replace(NAICS,NAICS=="Health care and social assistance","Health/Social"),
+    NAICS=replace(NAICS,NAICS=="Management of companies and enterprises","Mgmt of Companies")
+    ) %>%
+  arrange(Estimate,NAICS,Ref_Date) %>%
+  group_by(Estimate,NAICS) %>%
+  mutate(change=Value-lag(Value,1))
+ggplot(filter(plotdata,Estimate=="Employment for all employees" & Ref_Date==max(Ref_Date)),
+       aes(reorder(NAICS,change),change)) +
+  geom_bar(stat="identity",fill="dodgerblue3") +
+  geom_hline(yintercept=0,size=1)+
+  coord_flip() +
+  mythemebarflip+
+  scale_y_continuous(breaks=pretty_breaks(n=6),label=comma)+
+  labs(x="",y="Number of Payroll Jobs",
+       title=paste("Change in Alberta's Payroll Jobs,",lastmonth,"to",thismonth),
+       subtitle="Source: Statistics Canada data table 14-10-0223.",caption="Graph by @trevortombe.")
+```
+
+# Earnings
+
+```{r earnings}
+plotdata<-seph %>%
+  filter(Estimate=="Average weekly earnings including overtime for all employees" & 
+                 NAICS=="Industrial aggregate excluding unclassified businesses" & Ref_Date==max(Ref_Date)) %>%
+  left_join(provnames,by="GEO") %>%
+  filter(!(short %in% c("CAN","NU","NT","YT")))
+ggplot(plotdata, aes(x=short,y=Value)) +
+	geom_col(fill="dodgerblue3") +
+  geom_text(aes(label=paste0("$",round(Value))),vjust=1.5,color="white",fontface="bold")+
+	geom_hline(aes(yintercept=0), colour="black", size=1) +
+	mythemebar +
+  scale_y_continuous(limits=c(0,1400),breaks=pretty_breaks(n=8),labels=dollar,expand=c(0,0)) +
+	labs(x="",y="Dollars per Week",title=paste0("Average Weekly Earnings, by Province (",thismonth,")"),
+		subtitle=paste("Source: CANSIM",sourcetable),caption="Graph by @trevortombe")
+```
+
+
