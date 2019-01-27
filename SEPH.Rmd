@@ -36,6 +36,9 @@ sephemp<-seph %>%
   filter(Estimate=="Employment for all employees",
          NAICS=="Industrial aggregate including unclassified businesses")
 
+# Wage and Salary Data
+wagedata<-getTABLE("14100222")
+
 today=max(seph$Ref_Date)
 thismonth=as.character(today)
 lastmonth=as.character(today-1/12)
@@ -217,6 +220,56 @@ ggplot(filter(plotdata,Estimate=="Employment for all employees" & Ref_Date==max(
   labs(x="",y="Number of Payroll Jobs",
        title=paste("Change in Alberta's Payroll Jobs,",lastmonth,"to",thismonth),
        subtitle="Source: Statistics Canada data table 14-10-0223.",caption="Graph by @trevortombe.")
+
+# Shift in Alberta's employment composition
+start="Oct 2014"
+seph<-seph %>% data.table()
+plotdata<-seph[GEO=="Alberta" & Estimate=="Employment for all employees" & Ref_Date>=start & NAICS!="Industrial aggregate including unclassified businesses" &
+                 NAICS!="Industrial aggregate excluding unclassified businesses" & NAICS!="Durable goods" & NAICS!="Trade" &
+                 NAICS!="Goods producing industries" & NAICS!="Service producing industries" & NAICS!="Non-durable goods"]
+plotdata[,totalemp:=sum(Value),by=Ref_Date]
+plotdata[,share:=Value/totalemp]
+plotdata<-plotdata[Ref_Date==start | Ref_Date==max(Ref_Date)]
+
+test2<-dcast(plotdata[,.(Ref_Date,NAICS,share)],NAICS~Ref_Date)
+test2[NAICS=="Administrative and support, waste management and remediation services"]$NAICS<-"Admin Support & Waste"
+test2[NAICS=="Other services (except public administration)"]$NAICS<-"Other Service"
+test2[NAICS=="Mining, quarrying, and oil and gas extraction"]$NAICS<-"Mining/Oil/Gas"
+test2[NAICS=="Forestry, logging and support"]$NAICS<-"Forestry"
+test2[NAICS=="Accommodation and food services"]$NAICS<-"Hotel/Restaurants"
+test2[NAICS=="Arts, entertainment and recreation"]$NAICS<-"Arts, enter., rec."
+test2[NAICS=="Professional, scientific and technical services"]$NAICS<-"Professional/Scientific"
+test2[NAICS=="Real estate and rental and leasing"]$NAICS<-"Real Estate"
+test2[NAICS=="Transportation and warehousing"]$NAICS<-"Transport/Storage"
+test2[NAICS=="Information and cultural industries"]$NAICS<-"Information/Culture"
+test2[NAICS=="Health care and social assistance"]$NAICS<-"Health/Social"
+test2[NAICS=="Management of companies and enterprises"]$NAICS<-"Mgmt of Corps."
+setnames(test2,start,"start")
+setnames(test2,paste(today),"end")
+test2<-test2[order(test2$start),]
+test2$NAICS<-factor(test2$NAICS,levels=test2$NAICS)
+test2[,change:=end-start]
+test2[,arrowend:=change-0.001*(change>0)+0.001*(change<0)]
+ggplot(test2, aes(x=start, xend=end, y=NAICS, group=NAICS)) + 
+  geom_segment(aes(xend=start+arrowend,yend=NAICS),color="royalblue",
+               arrow = arrow(type="closed",length = unit(0.15,"cm")))+
+  geom_dumbbell(color="royalblue", 
+                size=1, 
+                size_x=2,
+                colour_xend="firebrick",
+                size_xend=4)+
+  geom_text(aes(x=.05, y="Mining/Oil/Gas", label=paste(today)),
+            color="firebrick", hjust=1, size=3, nudge_y=0.5)+
+  geom_text(aes(x=0.068, y="Mining/Oil/Gas", label="Oct 2014"),
+            color="royalblue", hjust=0, size=3, nudge_y=0.5)+
+  geom_vline(xintercept = 0,size=1)+
+  mytheme+
+  scale_x_continuous(expand=c(0,0),limits=c(0,0.13),label=percent,breaks=pretty_breaks(n=8)) + 
+  labs(x="Share of Total Payroll Employment (%)", 
+       y=NULL, 
+       title="Where Are Alberta's Jobs? The Changing Composition Since Oct 2014", 
+       subtitle="Source: CANSIM 281-0063. October 2014 is used as the start of the recession.",
+       caption="Graph by @trevortombe")
 ```
 
 # Earnings
@@ -286,6 +339,86 @@ ggplot(plotdata,aes(Ref_Date,change,group=GEO,color=GEO))+
 	labs(x="",y="Year-over-Year % Change",title="Change in Average Weekly Earnings (YoY %)",
 		subtitle=paste("Source: CANSIM",sourcetable),caption="Graph by @trevortombe")
 ```
+
+## Hourly Wages vs Salaries
+
+```{r wages}
+## Weekly Earnings Change, hourly vs salary
+sourcetable="Statistics Canadad data table 14-10-0222"
+province="Alberta"
+startdate="Oct 2014"
+plotdata<-wagedata %>%
+  filter(GEO==province & (Estimate=="Average weekly earnings including overtime for hourly employees" |
+	   Estimate=="Average weekly earnings including overtime for salaried employees")) %>%
+  group_by(Estimate) %>%
+  mutate(YoY=Value/lag(Value,12)-1) %>%
+  filter(Ref_Date>=startdate) %>%
+  mutate(change=Value/Value[1]-1)
+ggplot(plotdata,aes(Ref_Date,change,group=Estimate,color=Estimate))+
+	geom_line(size=2) +
+	geom_hline(aes(yintercept=0), colour="black", size=1) +
+	mytheme +
+	scale_colour_brewer(name="",palette="Set1",label=c("Hourly Employees","Salaried Employees")) +
+  scale_y_continuous(breaks=pretty_breaks(n=10),labels=percent) +
+	scale_x_yearmon(format = "%b\n%Y") +
+	labs(x="",y="Per Cent Change",title=paste("Change in",province,"Weekly Earnings Since",startdate),
+		subtitle=paste("Source: ",sourcetable,sep=""),caption="Graph by @trevortombe")
+```
+
+```{r hourly_emp}
+# Hourly vs Salaried employment
+plotdata<-wagedata %>%
+  filter(GEO==province & Ref_Date>=startdate &
+	(Estimate=="Employment for hourly paid employees" |
+	   Estimate=="Employment for salaried employees")) %>%
+  group_by(Estimate) %>%
+  mutate(change=Value-Value[1])
+ggplot(plotdata,aes(Ref_Date,change/1000,group=Estimate,color=Estimate))+
+  geom_line(size=2) +
+	geom_hline(aes(yintercept=0), colour="black", size=1) +
+	mytheme +
+  scale_colour_brewer(name="",palette="Set1",label=c("Hourly Employees","Salaried Employees")) +
+  scale_y_continuous(breaks=pretty_breaks(n=8),labels=comma) +
+	scale_x_yearmon(breaks=pretty_breaks(n=8),format = "%b\n%Y") +
+	labs(x="",y="Thousands of Jobs",title=paste("Change in",province,"Payroll Employment Since",startdate),
+	     subtitle=paste("Source: ",sourcetable,sep=""),caption="Graph by @trevortombe")
+```
+
+```{r wage_vs_hours}
+plotdata<-wagedata %>%
+  filter(GEO==province & Ref_Date>=startdate &
+	(Estimate=="Average hourly earnings including overtime for hourly employees" |
+	   Estimate=="Average weekly hours including overtime for hourly employees")) %>%
+  group_by(Estimate) %>%
+  mutate(change=Value/Value[1]-1)
+ggplot(plotdata,aes(Ref_Date,change,group=Estimate,color=Estimate))+
+  geom_line(size=2) +
+	geom_hline(aes(yintercept=0), colour="black", size=1) +
+	mytheme +
+  scale_colour_brewer(name="",palette="Set1",label=c("Hourly Wages","Hours per Week")) +
+  scale_y_continuous(breaks=pretty_breaks(n=8),labels=percent,limit=c(-0.08,0.06)) +
+	scale_x_yearmon(format = "%Y") +
+	labs(x="",y="Per Cent Change",title=paste("Change in",province,"Hours/Wages for Hourly Workers since",startdate),
+	     subtitle=paste("Source: ",sourcetable,sep=""),caption="Graph by @trevortombe")
+```
+
+```{r hours}
+plotdata<-wagedata %>%
+  filter(GEO==province & Estimate=="Average weekly hours including overtime for hourly employees") %>%
+  filter(Ref_Date>="Jan 2010")
+ggplot(plotdata,aes(Ref_Date,Value))+
+  annotate("rect",xmin=as.numeric(as.yearmon("Oct 2014")), xmax=as.numeric(as.yearmon("Oct 2016")), 
+           ymin=-Inf, ymax=+Inf, alpha=0.2, fill="dodgerblue")+
+  annotate("text",x=2015.71, y=Inf, vjust=1.25, 
+           label="Recession",color="black",size=3,fontface="italic")+
+  geom_line(size=2,color="firebrick")+
+  mytheme +
+  scale_y_continuous(breaks=pretty_breaks(n=6),labels=comma) +
+  scale_x_yearmon(format="%Y")+
+  labs(x="",y="Hours per Week",title="Average weekly hours in Alberta",
+       subtitle=paste("Source: ",sourcetable,"-- including overtime; for hourly employees only."),caption="Graph by @trevortombe")
+```
+
 
 # Oil and Gas Detail
 
