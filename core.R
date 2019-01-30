@@ -56,11 +56,12 @@ getTABLEraw<-function(x) {
   return(rawdata)
 }
 loadTABLE<-function(x) {
-  data<-read.csv(paste0(x,".csv"),stringsAsFactors=FALSE) %>%
-    dplyr::rename(Ref_Date="?..REF_DATE",
-                  Value=VALUE) %>%
-    select(-UOM_ID,-SCALAR_ID)
-  if (class(data$Ref_Date)=="character" & !grepl("/",data$Ref_Date)){
+  rawdata<-read.csv(paste0(x,".csv"),stringsAsFactors=FALSE)
+  colnames(rawdata)[1]<-"Ref_Date"
+    data<-rawdata %>%
+      dplyr::rename(Value=VALUE) %>%
+      select(-UOM_ID,-SCALAR_ID)
+    if (class(data$Ref_Date)=="character" & !grepl("/",data$Ref_Date)){
     data<-data %>% #mutate(Ref_Date=ifelse(grepl("/",Ref_Date),Ref_Date,Ref_Date=as.yearmon(Ref_Date)))
       mutate(Ref_Date=as.yearmon(Ref_Date))
   }

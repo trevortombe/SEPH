@@ -39,7 +39,6 @@ sephemp<-seph %>%
 # Wage and Salary Data
 wagedata<-getTABLE("14100222")
 
-today=max(seph$Ref_Date)
 thismonth=as.character(today)
 lastmonth=as.character(today-1/12)
 lastyear=as.character(today-1)
