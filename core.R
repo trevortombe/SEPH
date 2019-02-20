@@ -9,7 +9,6 @@ library(RColorBrewer)
 library(ggthemes)
 library(tidyverse)
 library(ggrepel)
-#library(Quandl)
 library(jsonlite)
 library(data.table)
 library(ggalt)
@@ -130,6 +129,9 @@ renameTerr<-function(x) {
 }
 
 # Default theme
+update_geom_defaults("point", list(colour = "firebrick"))
+update_geom_defaults("line", list(colour = "firebrick"))
+
 mytheme<-theme(
   axis.text.y = element_text(size=10),
   axis.text.x = element_text(size=10,hjust=0.5),

@@ -42,6 +42,7 @@ wagedata<-getTABLE("14100222")
 thismonth=as.character(today)
 lastmonth=as.character(today-1/12)
 lastyear=as.character(today-1)
+
 ```
 
 <style>
@@ -65,8 +66,8 @@ plotdata<-sephemp %>%
   group_by(GEO) %>%
   mutate(change=Value-max(Value*(Ref_Date==startdate)))
 ggplot(plotdata,aes(Ref_Date,change/1000))+
-  geom_line(size=2,color="firebrick") +
-  geom_point(data=plotdata %>% filter(Ref_Date==max(Ref_Date)),size=4,color="firebrick")+
+  geom_line(size=2) +
+  geom_point(data=plotdata %>% filter(Ref_Date==max(Ref_Date)),size=4)+
 	geom_hline(aes(yintercept=0), colour="black", size=1) +
   geom_text(data=plotdata[plotdata$Ref_Date==max(plotdata$Ref_Date),],
             aes(x=Ref_Date,y=change/1000,label=paste(round(change/1000),"k",sep="")),
