@@ -18,7 +18,7 @@ always_allow_html: yes
 
 ```{r setup, include=FALSE}
 library(knitr)
-knitr::opts_chunk$set(message=F, warning=F,fig.width = 8,fig.height = 4.5,fig.align="center",cache=TRUE,echo=F)
+knitr::opts_chunk$set(message=F, warning=F,fig.width = 7.5,fig.height = 4,fig.align="center",cache=TRUE,echo=F)
 
 ```
 
@@ -28,7 +28,7 @@ source("core.R")
 # Fetches Latest SEPH Data
 seph<-getTABLE("14100223")
 seph<-seph %>% rename(NAICS=North.American.Industry.Classification.System..NAICS.)
-sourcetable<-"Statistics Canada table 14-10-0223"
+sourcetable<-"Statistics Canada data table 14-10-0223"
 today=max(seph$Ref_Date) # the latest month in the data
 
 # Constructs Employment Data
@@ -100,7 +100,7 @@ ggplot(plotdata,aes(Ref_Date,change/1000,group=Group,color=Group))+
 	scale_y_continuous(breaks=pretty_breaks(n=8)) +
   scale_x_yearmon(breaks=pretty_breaks(n=8),format = "%b\n%Y") +
   labs(x="",y="Thousands of Persons",title=paste("Change in Alberta Employment Since",startdate),
-		subtitle=paste("Source: Own calculations from Statistics Canada data table 14-10-0287 and",sourcetable),caption="Graph by @trevortombe")
+		subtitle=paste("Source: Own calculations from",sourcetable,"and 14-10-0287."),caption="Graph by @trevortombe")
 
 ```
 
@@ -119,7 +119,32 @@ ggplot(plotdata,aes(Ref_Date,Value/1000))+
   scale_y_continuous(breaks=pretty_breaks(n=8),label=comma) +
   scale_x_yearmon(breaks=pretty_breaks(n=8),format = "%Y") +
   labs(x="",y="Thousands of Jobs",title=paste("Total Payroll Employment in",plotdata$GEO),
-       subtitle=paste("Source: CANSIM",sourcetable),caption="Graph by @trevortombe")
+       subtitle=paste("Source: Own calculations from",sourcetable),caption="Graph by @trevortombe")
+
+plotdata<-seph %>%
+      filter(Estimate=="Employment for all employees",GEO=="Alberta",Ref_Date>=startdate,
+             NAICS=="Industrial aggregate excluding unclassified businesses") %>%
+  select(Ref_Date,emp=Value) %>%
+  left_join(
+    seph %>%
+      filter(Estimate=="Average weekly earnings including overtime for all employees",GEO=="Alberta",
+             NAICS=="Industrial aggregate excluding unclassified businesses") %>%
+      select(Ref_Date,pay=Value)
+  ) %>%
+  mutate(total_earnings=4*pay*emp/1000000)
+ggplot(plotdata,aes(Ref_Date,total_earnings))+
+  annotate("rect",xmin=as.numeric(as.yearmon("Oct 2014")), xmax=as.numeric(as.yearmon("Oct 2016")), 
+           ymin=-Inf, ymax=+Inf, alpha=0.2, fill="dodgerblue")+
+  annotate("text",x=2015.71, y=Inf, vjust=1,
+           label="Recession",color="black",size=3,fontface="italic")+
+  geom_line(size=2,color="firebrick") +
+  geom_point(data=plotdata %>% filter(Ref_Date==max(Ref_Date)),size=3,color="firebrick")+
+  mytheme+
+  scale_y_continuous(breaks=pretty_breaks(n=8),label=comma) +
+  scale_x_yearmon(breaks=pretty_breaks(n=8),format = "%Y") +
+  labs(x="",y="Millions of Dollars per Month",title="Total Payroll Compensation in Alberta",
+       subtitle=paste("Source: Own calculations from",sourcetable),caption="Graph by @trevortombe")
+
 ```
 
 ## All Provinces
@@ -140,7 +165,7 @@ ggplot() +
   scale_y_continuous(breaks=pretty_breaks(n=8),label=percent) +
   scale_x_yearmon(breaks=pretty_breaks(n=8),format = "%b\n%Y") +
   labs(x="",y="Per Cent Change (%)",title=paste("Change in Payroll Jobs in Canada,",startdate,"to",today),
-		subtitle=paste("Source: CANSIM",sourcetable),caption="Graph by @trevortombe") +
+		subtitle=paste("Source: Own calculations from",sourcetable),caption="Graph by @trevortombe") +
 	annotate(geom="text", x=2016.25, y=.07, label="British Columbia",color="royalblue4",size=3,fontface="bold") +
 	annotate(geom="text", x=2016.75, y=-.07, label="Alberta",color="firebrick",size=3,fontface="bold") +
   annotate(geom="text", x=2016.5, y=-.025, label="Saskatchewan",color="darkgreen",size=3,fontface="bold") +
@@ -219,7 +244,7 @@ ggplot(filter(plotdata,Estimate=="Employment for all employees" & Ref_Date==max(
   scale_y_continuous(breaks=pretty_breaks(n=6),label=comma)+
   labs(x="",y="Number of Payroll Jobs",
        title=paste("Change in Alberta's Payroll Jobs,",lastmonth,"to",thismonth),
-       subtitle="Source: Statistics Canada data table 14-10-0223.",caption="Graph by @trevortombe.")
+       subtitle="Source: Own calculations from Statistics Canada data table 14-10-0223.",caption="Graph by @trevortombe.")
 
 # Shift in Alberta's employment composition
 start="Oct 2014"
@@ -268,7 +293,7 @@ ggplot(test2, aes(x=start, xend=end, y=NAICS, group=NAICS)) +
   labs(x="Share of Total Payroll Employment (%)", 
        y=NULL, 
        title="Where Are Alberta's Jobs? The Changing Composition Since Oct 2014", 
-       subtitle="Source: CANSIM 281-0063. October 2014 is used as the start of the recession.",
+       subtitle="Source: Own calculations from Statistics Canada data table 14-10-0223. October 2014 is used as the start of the recession.",
        caption="Graph by @trevortombe")
 ```
 
@@ -287,7 +312,7 @@ ggplot(plotdata, aes(x=short,y=Value)) +
 	mythemebar +
   scale_y_continuous(limits=c(0,1400),breaks=pretty_breaks(n=8),labels=dollar,expand=c(0,0)) +
 	labs(x="",y="Dollars per Week",title=paste0("Average Weekly Earnings, by Province (",thismonth,")"),
-		subtitle=paste("Source: CANSIM",sourcetable),caption="Graph by @trevortombe")
+		subtitle=paste("Source: Own calculations from",sourcetable),caption="Graph by @trevortombe")
 
 startdate="Jan 2011"
 plotdata<-seph %>%
@@ -304,7 +329,7 @@ ggplot(plotdata,aes(Ref_Date,Value,group=GEO))+
 	scale_x_yearmon(format = "%Y",n=8) +
 	annotate(geom="text", x=2016, y=770,hjust=0, label="All Other Provinces",color="grey70",size=4,fontface="bold") +
 	labs(x="",y="Dollars",title=paste("Average Weekly Earnings,",startdate,"to",today),
-		subtitle=paste("Source: CANSIM",sourcetable),caption="Graph by @trevortombe")
+		subtitle=paste("Source: Own calculations from",sourcetable),caption="Graph by @trevortombe")
 
 ggplot(plotdata %>% filter(GEO=="Alberta"),aes(Ref_Date,Value))+
   annotate("rect",xmin=as.numeric(as.yearmon("Oct 2014")), xmax=as.numeric(as.yearmon("Oct 2016")), 
@@ -316,7 +341,7 @@ ggplot(plotdata %>% filter(GEO=="Alberta"),aes(Ref_Date,Value))+
   scale_y_continuous(labels=dollar,expand=c(0,0),limit=c(1000,1200)) +
   scale_x_yearmon(format = "%Y",breaks=seq(2011,2018)) +
   labs(x="",y="Dollars",title=paste("Average Weekly Earnings in Alberta,",startdate,"to",today),
-       subtitle=paste("Source: CANSIM",sourcetable),caption="Graph by @trevortombe")
+       subtitle=paste("Source: Own calculations from",sourcetable),caption="Graph by @trevortombe")
 
 plotdata<-seph %>%
   filter(Estimate=="Average weekly earnings including overtime for all employees" & GEO %in% c("Canada","Alberta") &
@@ -337,14 +362,14 @@ ggplot(plotdata,aes(Ref_Date,change,group=GEO,color=GEO))+
 	scale_y_continuous(breaks=pretty_breaks(n=10),labels=percent) +
 	scale_x_yearmon(format = "%b\n%Y",n=8) +
 	labs(x="",y="Year-over-Year % Change",title="Change in Average Weekly Earnings (YoY %)",
-		subtitle=paste("Source: CANSIM",sourcetable),caption="Graph by @trevortombe")
+		subtitle=paste("Source: Own calculations from",sourcetable),caption="Graph by @trevortombe")
 ```
 
 ## Hourly Wages vs Salaries
 
 ```{r wages}
 ## Weekly Earnings Change, hourly vs salary
-sourcetable="Statistics Canadad data table 14-10-0222"
+sourcetable="Statistics Canada data table 14-10-0222"
 province="Alberta"
 startdate="Oct 2014"
 plotdata<-wagedata %>%
@@ -362,7 +387,7 @@ ggplot(plotdata,aes(Ref_Date,change,group=Estimate,color=Estimate))+
   scale_y_continuous(breaks=pretty_breaks(n=10),labels=percent) +
 	scale_x_yearmon(format = "%b\n%Y") +
 	labs(x="",y="Per Cent Change",title=paste("Change in",province,"Weekly Earnings Since",startdate),
-		subtitle=paste("Source: ",sourcetable,sep=""),caption="Graph by @trevortombe")
+		subtitle=paste("Source: Own calculations from ",sourcetable,sep=""),caption="Graph by @trevortombe")
 ```
 
 ```{r hourly_emp}
@@ -381,7 +406,7 @@ ggplot(plotdata,aes(Ref_Date,change/1000,group=Estimate,color=Estimate))+
   scale_y_continuous(breaks=pretty_breaks(n=8),labels=comma) +
 	scale_x_yearmon(breaks=pretty_breaks(n=8),format = "%b\n%Y") +
 	labs(x="",y="Thousands of Jobs",title=paste("Change in",province,"Payroll Employment Since",startdate),
-	     subtitle=paste("Source: ",sourcetable,sep=""),caption="Graph by @trevortombe")
+	     subtitle=paste("Source: Own calculations from ",sourcetable,sep=""),caption="Graph by @trevortombe")
 ```
 
 ```{r wage_vs_hours}
@@ -399,7 +424,7 @@ ggplot(plotdata,aes(Ref_Date,change,group=Estimate,color=Estimate))+
   scale_y_continuous(breaks=pretty_breaks(n=8),labels=percent,limit=c(-0.08,0.06)) +
 	scale_x_yearmon(format = "%Y") +
 	labs(x="",y="Per Cent Change",title=paste("Change in",province,"Hours/Wages for Hourly Workers since",startdate),
-	     subtitle=paste("Source: ",sourcetable,sep=""),caption="Graph by @trevortombe")
+	     subtitle=paste("Source: Own calculations from ",sourcetable,sep=""),caption="Graph by @trevortombe")
 ```
 
 ```{r hours}
@@ -416,7 +441,57 @@ ggplot(plotdata,aes(Ref_Date,Value))+
   scale_y_continuous(breaks=pretty_breaks(n=6),labels=comma) +
   scale_x_yearmon(format="%Y")+
   labs(x="",y="Hours per Week",title="Average weekly hours in Alberta",
-       subtitle=paste("Source: ",sourcetable,"-- including overtime; for hourly employees only."),caption="Graph by @trevortombe")
+       subtitle=paste("Source: Own calculations from ",sourcetable,"-- including overtime; for hourly employees only."),caption="Graph by @trevortombe")
+
+plotdata<-wagedata %>%
+  filter(GEO==province & Estimate=="Standard work week excluding overtime for salaried employees (exclude overtime)") %>%
+  filter(Ref_Date>="Jan 2010")
+ggplot(plotdata,aes(Ref_Date,Value))+
+  annotate("rect",xmin=as.numeric(as.yearmon("Oct 2014")), xmax=as.numeric(as.yearmon("Oct 2016")), 
+           ymin=-Inf, ymax=+Inf, alpha=0.2, fill="dodgerblue")+
+  annotate("text",x=2015.71, y=Inf, vjust=1.25, 
+           label="Recession",color="black",size=3,fontface="italic")+
+  geom_line(size=2,color="firebrick")+
+  mytheme +
+  scale_y_continuous(breaks=pretty_breaks(n=6),labels=comma) +
+  scale_x_yearmon(format="%Y")+
+  labs(x="",y="Hours per Week",title="Average weekly hours in Alberta",
+       subtitle=paste("Source: Own calculations from ",sourcetable,"-- including overtime; for salaried workers only."),caption="Graph by @trevortombe")
+
+# Total hours
+plotdata<-wagedata %>%
+  filter(GEO==province & Estimate=="Employment for hourly paid employees") %>%
+  filter(Ref_Date>="Jan 2010") %>%
+  select(Ref_Date,emp_hrly=Value) %>%
+  left_join(
+    wagedata %>%
+      filter(GEO==province & Estimate=="Employment for salaried employees") %>%
+      filter(Ref_Date>="Jan 2010") %>% select(Ref_Date,emp_sal=Value), by="Ref_Date"
+  ) %>%
+  left_join(
+    wagedata %>%
+      filter(GEO==province & Estimate=="Average weekly hours including overtime for hourly employees") %>%
+      filter(Ref_Date>="Jan 2010") %>% select(Ref_Date,hours_hrly=Value), by="Ref_Date"
+  ) %>%
+  left_join(
+    wagedata %>%
+      filter(GEO==province & Estimate=="Standard work week excluding overtime for salaried employees (exclude overtime)") %>%
+      filter(Ref_Date>="Jan 2010") %>% select(Ref_Date,hours_sal=Value), by="Ref_Date"
+  ) %>%
+  mutate(total_hours=4*(emp_hrly*hours_hrly+emp_sal*hours_sal)/1000000,
+         change=total_hours/total_hours[1]-1)
+ggplot(plotdata,aes(Ref_Date,total_hours))+
+  annotate("rect",xmin=as.numeric(as.yearmon("Oct 2014")), xmax=as.numeric(as.yearmon("Oct 2016")), 
+           ymin=-Inf, ymax=+Inf, alpha=0.2, fill="dodgerblue")+
+  annotate("text",x=2015.71, y=Inf, vjust=1.25, label="Recession",color="black",size=3,fontface="italic")+
+  geom_line(size=2,color="firebrick")+
+  mytheme +
+  scale_y_continuous(breaks=pretty_breaks(n=6),labels=comma) +
+  scale_x_yearmon(format="%Y")+
+  labs(x="",y="Millions of Hours per Month",title="Aggregate Hours of Payroll Employment",
+       subtitle=paste("Source: Own calculations from ",sourcetable,"-- includes both hourly and salaried workers"),caption="Graph by @trevortombe")
+
+
 ```
 
 
@@ -445,7 +520,7 @@ ggplot(plotdata %>% filter(Ref_Date>="Jan 2013"),aes(x=Ref_Date,y=Value,group=NA
 	scale_y_continuous(breaks=pretty_breaks(n=10),labels=comma) +
 	scale_x_yearmon(format="%Y") +
 	labs(x="",y="Persons",title="Payroll Employment in Alberta Mining, Oil and Gas",
-		subtitle="Source: CANSIM 281-0023",caption="Graph by @trevortombe")
+		subtitle="Source: Own calculations from Statistics Canada data table 14-10-0201.",caption="Graph by @trevortombe")
 ```
 
 # Diffusion Index
@@ -474,7 +549,7 @@ ggplot(test,aes(Ref_Date,share))+geom_line(size=2,color="firebrick")+
        title="The Breadth of Alberta's Jobs Recovery (a `Diffusion Index`)",
        subtitle="Displays the share of disaggregated NAICS sectors with higher payroll employment than 12 months prior.
 When above the black line, more sectors are expanding than shrinking. Below the line, more sectors are shrinking than expanding.
-Source: Own calculations from Statistics Canada 14-10-0201. Note: I exclude high-level aggregates, but some double counting remains.",
+Source: Own calculations from Statistics Canada data table 14-10-0201. Note: I exclude high-level aggregates, but some double counting remains.",
        caption="Graph by @trevortombe")
 ```
 
