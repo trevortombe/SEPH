@@ -1,7 +1,7 @@
 ---
 title: "Survey of Employment, Payrolls and Hours"
 author: "Trevor Tombe"
-date: "January 2019"
+date: "February 2019"
 output:
   html_document:
     includes:
@@ -51,7 +51,7 @@ div.blue { background-color:#e6f0ff; border-radius: 5px; padding: 20px;}
 <div class = "blue">
 Each month Statistics Canada releases comprehensive data on the state of Canada's labour markets. The Survey of Employment, Payroll and Hours is based on firm-level administrative payroll data. This is distinct from the Labour Force Survey, which is another important source of labour market information.
 
-This page summarizes all of the latest results from that data.
+This page summarizes all of the latest results from that data for `r thismonth'.
 </div>
 
 # Change in Employment, by Province {.tabset .tabset-fade}
