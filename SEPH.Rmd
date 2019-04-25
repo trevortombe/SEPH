@@ -51,7 +51,7 @@ div.blue { background-color:#e6f0ff; border-radius: 5px; padding: 20px;}
 <div class = "blue">
 Each month Statistics Canada releases comprehensive data on the state of Canada's labour markets. The Survey of Employment, Payroll and Hours is based on firm-level administrative payroll data. This is distinct from the Labour Force Survey, which is another important source of labour market information.
 
-This page summarizes all of the latest results from that data for `r thismonth'.
+This page summarizes all of the latest results from that data for `r thismonth`.
 </div>
 
 # Change in Employment, by Province {.tabset .tabset-fade}
@@ -296,6 +296,42 @@ ggplot(test2, aes(x=start, xend=end, y=NAICS, group=NAICS)) +
        subtitle="Source: Own calculations from Statistics Canada data table 14-10-0223. October 2014 is used as the start of the recession.",
        caption="Graph by @trevortombe")
 ```
+
+# Public vs Private
+```{r public-v-private}
+plotdata<-seph %>%
+  filter(Estimate=="Employment for all employees",
+         !NAICS %in% c("Industrial aggregate including unclassified businesses",
+                       "Industrial aggregate excluding unclassified businesses",
+                       "Goods producing industries","Non-durable goods",
+                       "Durable goods","Service producing industries",
+                       "Wholesale trade","Retail trade"),
+         GEO=="Alberta",Ref_Date>="Oct 2014") %>%
+  mutate(type=ifelse(NAICS %in% c("Public administration","Educational services",
+                                   "Health care and social assistance"),
+                     "Health, Educ., and Public Admin.",
+                     "All Other Sectors")) %>%
+  group_by(Ref_Date,type) %>%
+  summarise(Value=sum(Value)) %>%
+  group_by(type) %>%
+  mutate(change=Value-Value[1])
+ggplot(plotdata,aes(Ref_Date,change,group=type,color=type))+
+  geom_line(size=2)+
+  geom_hline(yintercept=0,size=1)+
+  geom_point(data=plotdata %>% filter(Ref_Date=="Oct 2014"),
+             aes(y=0),size=3,color="black")+
+  annotate('text',x=2014+9/12,y=35000,label="Start of\nRecession",size=3,hjust=0)+
+  annotate('text',x=2018,y=-75000,label="Little change in private\npayroll jobs since June 2017",size=3)+
+  mytheme+
+  scale_y_continuous(label=comma,expand=c(0,0),limit=c(-170000,60000),
+                     breaks=pretty_breaks(n=6))+
+  scale_color_brewer(name="",palette="Set1")+
+  labs(x="",y="Number of Jobs",
+       title="Change in Payroll Jobs Since Alberta's Recession Started",
+       subtitle="Source: Own calculations from Statistics Canada data table 14-10-0223.",
+       caption="Graph by @trevortombe")
+```
+
 
 # Earnings
 
