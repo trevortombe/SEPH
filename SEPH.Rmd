@@ -401,6 +401,39 @@ ggplot(plotdata,aes(Ref_Date,change,group=GEO,color=GEO))+
 		subtitle=paste("Source: Own calculations from",sourcetable),caption="Graph by @trevortombe")
 ```
 
+## Real Wages in Alberta
+```{r fetch CPI}
+cpi<-getTABLE("18100006")
+CPI<-cpi %>% 
+  filter(Products.and.product.groups=="All-items") %>% 
+  select(CPI=Value,Ref_Date)
+```
+
+```{r real earnings}
+plotdata<-seph %>%
+  filter(Estimate=="Average weekly earnings including overtime for all employees" &
+           NAICS=="Industrial aggregate excluding unclassified businesses" & 
+           GEO=="Alberta" & Ref_Date>="Jan 2010") %>%
+  left_join(CPI,by="Ref_Date") %>%
+  mutate(Real=Value*CPI[1]/CPI) %>%
+  select(Ref_Date,Value,Real) %>%
+  gather(type,value,-Ref_Date)
+ggplot(plotdata,aes(Ref_Date,value,group=type,color=type))+
+  annotate("rect",xmin=as.numeric(as.yearmon("Oct 2014")), xmax=as.numeric(as.yearmon("Oct 2016")), 
+           ymin=-Inf, ymax=+Inf, alpha=0.2, fill="dodgerblue")+
+  annotate("text",x=2015.71, y=Inf, vjust=1.25, 
+           label="Recession",color="black",size=3,fontface="italic")+
+  geom_line(size=2) +
+	mytheme +
+	scale_colour_brewer(name="",labels=c("Inflation-Adjusted (2010$)","Nominal Dollars"),palette="Set1") +
+	scale_y_continuous(breaks=pretty_breaks(n=6),labels=dollar) +
+	scale_x_yearmon(format = "%Y",n=8) +
+	labs(x="",y="Dollars",title="Average Weekly Earnings in Alberta",
+		subtitle=paste("Source: Own calculations from",sourcetable,"and 18-10-0006"),caption="Graph by @trevortombe")
+
+```
+
+
 ## Hourly Wages vs Salaries
 
 ```{r wages}
