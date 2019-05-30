@@ -1,7 +1,7 @@
 ---
 title: "Survey of Employment, Payrolls and Hours"
 author: "Trevor Tombe"
-date: "February 2019"
+date: ""
 output:
   html_document:
     includes:
