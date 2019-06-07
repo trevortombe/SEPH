@@ -457,6 +457,16 @@ ggplot(plotdata,aes(Ref_Date,change,group=Estimate,color=Estimate))+
 	scale_x_yearmon(format = "%b\n%Y") +
 	labs(x="",y="Per Cent Change",title=paste("Change in",province,"Weekly Earnings Since",startdate),
 		subtitle=paste("Source: Own calculations from ",sourcetable,sep=""),caption="Graph by @trevortombe")
+
+ggplot(plotdata,aes(Ref_Date,Value,group=Estimate,color=Estimate))+
+	geom_line(size=2) +
+	geom_hline(aes(yintercept=0), colour="black", size=1) +
+	mytheme +
+	scale_colour_brewer(name="",palette="Set1",label=c("Hourly Employees","Salaried Employees")) +
+  scale_y_continuous(breaks=pretty_breaks(n=10),labels=dollar) +
+	scale_x_yearmon(format = "%Y") +
+	labs(x="",y="Per Cent Change",title=paste("Change in",province,"Weekly Earnings Since",startdate),
+		subtitle=paste("Source: Own calculations from ",sourcetable,sep=""),caption="Graph by @trevortombe")
 ```
 
 ```{r hourly_emp}
@@ -475,6 +485,19 @@ ggplot(plotdata,aes(Ref_Date,change/1000,group=Estimate,color=Estimate))+
   scale_y_continuous(breaks=pretty_breaks(n=8),labels=comma) +
 	scale_x_yearmon(breaks=pretty_breaks(n=8),format = "%b\n%Y") +
 	labs(x="",y="Thousands of Jobs",title=paste("Change in",province,"Payroll Employment Since",startdate),
+	     subtitle=paste("Source: Own calculations from ",sourcetable,sep=""),caption="Graph by @trevortombe")
+
+plotdata2<-plotdata %>%
+  group_by(Ref_Date) %>%
+  mutate(total=sum(Value),
+         share=Value/total) %>%
+  filter(Estimate=="Employment for hourly paid employees")
+ggplot(plotdata2,aes(Ref_Date,share))+
+  geom_line(size=2,color="firebrick") +
+	mytheme +
+  scale_y_continuous(breaks=pretty_breaks(n=8),labels=percent) +
+	scale_x_yearmon(breaks=pretty_breaks(n=8),format = "%Y") +
+	labs(x="",y="Per Cent",title="Hourly Employees as a Share of Total in Alberta",
 	     subtitle=paste("Source: Own calculations from ",sourcetable,sep=""),caption="Graph by @trevortombe")
 ```
 
