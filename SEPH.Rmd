@@ -34,7 +34,7 @@ today=max(seph$Ref_Date) # the latest month in the data
 # Constructs Employment Data
 sephemp<-seph %>%
   filter(Estimate=="Employment for all employees",
-         NAICS=="Industrial aggregate including unclassified businesses")
+         grepl("Industrial aggregate including unclassified businesses",NAICS))
 
 # Wage and Salary Data
 wagedata<-getTABLE("14100222")
@@ -123,12 +123,12 @@ ggplot(plotdata,aes(Ref_Date,Value/1000))+
 
 plotdata<-seph %>%
       filter(Estimate=="Employment for all employees",GEO=="Alberta",Ref_Date>=startdate,
-             NAICS=="Industrial aggregate excluding unclassified businesses") %>%
+         grepl("Industrial aggregate excluding unclassified businesses",NAICS)) %>%
   select(Ref_Date,emp=Value) %>%
   left_join(
     seph %>%
       filter(Estimate=="Average weekly earnings including overtime for all employees",GEO=="Alberta",
-             NAICS=="Industrial aggregate excluding unclassified businesses") %>%
+             grepl("Industrial aggregate excluding unclassified businesses",NAICS)) %>%
       select(Ref_Date,pay=Value)
   ) %>%
   mutate(total_earnings=4*pay*emp/1000000)
@@ -177,6 +177,8 @@ Growth in employment, by sector.
 
 ```{r by sector}
 plotdata<-as_tibble(seph) %>%
+  mutate(test=regexpr(" \\[",NAICS)-1,
+         NAICS=ifelse(test>0,substr(NAICS,1,test),NAICS)) %>%
   filter(GEO=="Alberta" & Ref_Date>="Jan 2016" & 
            !(NAICS %in% c("Industrial aggregate including unclassified businesses",
                           "Industrial aggregate excluding unclassified businesses",
@@ -212,6 +214,8 @@ ggplot(filter(plotdata,Estimate=="Employment for all employees" & Ref_Date==max(
        subtitle="Source: Statistics Canada data table 14-10-0223.",caption="Graph by @trevortombe.")
 
 plotdata<-as_tibble(seph) %>%
+    mutate(test=regexpr(" \\[",NAICS)-1,
+         NAICS=ifelse(test>0,substr(NAICS,1,test),NAICS)) %>%
   filter(GEO=="Alberta" & Ref_Date>="Jan 2016" & 
            !(NAICS %in% c("Industrial aggregate including unclassified businesses",
                           "Industrial aggregate excluding unclassified businesses",
@@ -248,7 +252,9 @@ ggplot(filter(plotdata,Estimate=="Employment for all employees" & Ref_Date==max(
 
 # Shift in Alberta's employment composition
 start="Oct 2014"
-seph<-seph %>% data.table()
+seph<-seph %>%
+    mutate(test=regexpr(" \\[",NAICS)-1,
+         NAICS=ifelse(test>0,substr(NAICS,1,test),NAICS)) %>% data.table()
 plotdata<-seph[GEO=="Alberta" & Estimate=="Employment for all employees" & Ref_Date>=start & NAICS!="Industrial aggregate including unclassified businesses" &
                  NAICS!="Industrial aggregate excluding unclassified businesses" & NAICS!="Durable goods" & NAICS!="Trade" &
                  NAICS!="Goods producing industries" & NAICS!="Service producing industries" & NAICS!="Non-durable goods"]
@@ -283,8 +289,9 @@ ggplot(test2, aes(x=start, xend=end, y=NAICS, group=NAICS)) +
                 size_x=2,
                 colour_xend="firebrick",
                 size_xend=4)+
-  geom_text(aes(x=.05, y="Mining/Oil/Gas", label=paste(today)),
-            color="firebrick", hjust=1, size=3, nudge_y=0.5)+
+  geom_text(data=test2 %>% filter(NAICS=="Mining/Oil/Gas"),
+            aes(x=end, y="Mining/Oil/Gas", label=paste(today)),
+            color="firebrick", hjust=1, size=3, nudge_y=0.5, nudge_x=-0.002)+
   geom_text(aes(x=0.068, y="Mining/Oil/Gas", label="Oct 2014"),
             color="royalblue", hjust=0, size=3, nudge_y=0.5)+
   geom_vline(xintercept = 0,size=1)+
@@ -300,6 +307,8 @@ ggplot(test2, aes(x=start, xend=end, y=NAICS, group=NAICS)) +
 # Public vs Private
 ```{r public-v-private}
 plotdata<-seph %>%
+    mutate(test=regexpr(" \\[",NAICS)-1,
+         NAICS=ifelse(test>0,substr(NAICS,1,test),NAICS)) %>%
   filter(Estimate=="Employment for all employees",
          !NAICS %in% c("Industrial aggregate including unclassified businesses",
                        "Industrial aggregate excluding unclassified businesses",
@@ -323,7 +332,7 @@ ggplot(plotdata,aes(Ref_Date,change,group=type,color=type))+
   annotate('text',x=2014+9/12,y=35000,label="Start of\nRecession",size=3,hjust=0)+
   annotate('text',x=2018,y=-75000,label="Little change in private\npayroll jobs since June 2017",size=3)+
   mytheme+
-  scale_y_continuous(label=comma,expand=c(0,0),limit=c(-170000,60000),
+  scale_y_continuous(label=comma,expand=c(0,0),limit=c(-170000,100000),
                      breaks=pretty_breaks(n=6))+
   scale_color_brewer(name="",palette="Set1")+
   labs(x="",y="Number of Jobs",
@@ -337,8 +346,10 @@ ggplot(plotdata,aes(Ref_Date,change,group=type,color=type))+
 
 ```{r earnings}
 plotdata<-seph %>%
-  filter(Estimate=="Average weekly earnings including overtime for all employees" & 
-                 NAICS=="Industrial aggregate excluding unclassified businesses" & Ref_Date==max(Ref_Date)) %>%
+    mutate(test=regexpr(" \\[",NAICS)-1,
+         NAICS=ifelse(test>0,substr(NAICS,1,test),NAICS)) %>%
+  filter(Estimate=="Average weekly earnings including overtime for all employees",
+                 NAICS=="Industrial aggregate excluding unclassified businesses",Ref_Date==max(Ref_Date)) %>%
   left_join(provnames,by="GEO") %>%
   filter(!(short %in% c("CAN","NU","NT","YT")))
 ggplot(plotdata, aes(x=short,y=Value)) +
@@ -352,8 +363,8 @@ ggplot(plotdata, aes(x=short,y=Value)) +
 
 startdate="Jan 2011"
 plotdata<-seph %>%
-  filter(Estimate=="Average weekly earnings including overtime for all employees" &
-                  NAICS=="Industrial aggregate excluding unclassified businesses" & Ref_Date>=startdate &
+  filter(Estimate=="Average weekly earnings including overtime for all employees",
+         grepl("Industrial aggregate excluding unclassified businesses",NAICS),Ref_Date>=startdate &
            !(GEO %in% c("Nunavut","Northwest Territories","Yukon")))
 ggplot(plotdata,aes(Ref_Date,Value,group=GEO))+
 	geom_line(size = 1, color="gray") +
@@ -380,8 +391,8 @@ ggplot(plotdata %>% filter(GEO=="Alberta"),aes(Ref_Date,Value))+
        subtitle=paste("Source: Own calculations from",sourcetable),caption="Graph by @trevortombe")
 
 plotdata<-seph %>%
-  filter(Estimate=="Average weekly earnings including overtime for all employees" & GEO %in% c("Canada","Alberta") &
-           NAICS=="Industrial aggregate excluding unclassified businesses") %>%
+  filter(Estimate=="Average weekly earnings including overtime for all employees",GEO %in% c("Canada","Alberta"),
+         grepl("Industrial aggregate excluding unclassified businesses",NAICS)) %>%
   group_by(GEO) %>%
   mutate(change=Value/lag(Value,12)-1) %>%
   filter(Ref_Date>="Jan 2012")
@@ -411,8 +422,8 @@ CPI<-cpi %>%
 
 ```{r real earnings}
 plotdata<-seph %>%
-  filter(Estimate=="Average weekly earnings including overtime for all employees" &
-           NAICS=="Industrial aggregate excluding unclassified businesses" & 
+  filter(Estimate=="Average weekly earnings including overtime for all employees",
+         grepl("Industrial aggregate excluding unclassified businesses",NAICS),
            GEO=="Alberta" & Ref_Date>="Jan 2010") %>%
   left_join(CPI,by="Ref_Date") %>%
   mutate(Real=Value*CPI[1]/CPI) %>%
@@ -430,6 +441,43 @@ ggplot(plotdata,aes(Ref_Date,value,group=type,color=type))+
 	scale_x_yearmon(format = "%Y",n=8) +
 	labs(x="",y="Dollars",title="Average Weekly Earnings in Alberta",
 		subtitle=paste("Source: Own calculations from",sourcetable,"and 18-10-0006"),caption="Graph by @trevortombe")
+
+```
+
+## Sectoral Earnings
+```{r sectoral earnings}
+start="Oct 2014"
+empshare <- seph  %>%
+    mutate(test=regexpr(" \\[",NAICS)-1,
+         NAICS=ifelse(test>0,substr(NAICS,1,test),NAICS)) %>%
+  filter(GEO=="Alberta" & Estimate=="Employment for all employees" & Ref_Date>=start & 
+           NAICS!="Industrial aggregate including unclassified businesses" &
+                 NAICS!="Industrial aggregate excluding unclassified businesses" & NAICS!="Durable goods" & NAICS!="Trade" &
+                 NAICS!="Goods producing industries" & NAICS!="Service producing industries" & NAICS!="Non-durable goods") %>%
+  group_by(Ref_Date) %>%
+  mutate(share=Value/sum(Value)) %>%
+  ungroup() %>%
+  select(Ref_Date,NAICS,share)
+earn <- seph  %>%
+    mutate(test=regexpr(" \\[",NAICS)-1,
+         NAICS=ifelse(test>0,substr(NAICS,1,test),NAICS)) %>%
+  filter(GEO=="Alberta" & Estimate=="Average weekly earnings including overtime for all employees" & Ref_Date>=start & 
+           NAICS!="Industrial aggregate including unclassified businesses" &
+                 NAICS!="Industrial aggregate excluding unclassified businesses" & NAICS!="Durable goods" & NAICS!="Trade" &
+                 NAICS!="Goods producing industries" & NAICS!="Service producing industries" & NAICS!="Non-durable goods") %>%
+  select(Ref_Date,NAICS,earn=Value)
+plotdata<-empshare %>%
+  left_join(earn,by=c("NAICS","Ref_Date")) %>%
+  drop_na() %>%
+  group_by(NAICS) %>%
+  mutate(initialshare=max((Ref_Date==start)*share)) %>%
+  group_by(Ref_Date) %>%
+  summarise(avgearn=weighted.mean(earn,share),
+            avgearn_fixed=weighted.mean(earn,initialshare)) %>%
+  gather(var,value,-Ref_Date)
+ggplot(plotdata,aes(Ref_Date,value,group=var,color=var))+
+  geom_line()
+
 
 ```
 
@@ -530,7 +578,7 @@ ggplot(plotdata,aes(Ref_Date,Value))+
            label="Recession",color="black",size=3,fontface="italic")+
   geom_line(size=2,color="firebrick")+
   mytheme +
-  scale_y_continuous(breaks=pretty_breaks(n=6),labels=comma) +
+  scale_y_continuous(breaks=pretty_breaks(n=6)) +
   scale_x_yearmon(format="%Y")+
   labs(x="",y="Hours per Week",title="Average weekly hours in Alberta",
        subtitle=paste("Source: Own calculations from ",sourcetable,"-- including overtime; for hourly employees only."),caption="Graph by @trevortombe")
@@ -545,7 +593,7 @@ ggplot(plotdata,aes(Ref_Date,Value))+
            label="Recession",color="black",size=3,fontface="italic")+
   geom_line(size=2,color="firebrick")+
   mytheme +
-  scale_y_continuous(breaks=pretty_breaks(n=6),labels=comma) +
+  scale_y_continuous(breaks=pretty_breaks(n=6)) +
   scale_x_yearmon(format="%Y")+
   labs(x="",y="Hours per Week",title="Average weekly hours in Alberta",
        subtitle=paste("Source: Own calculations from ",sourcetable,"-- including overtime; for salaried workers only."),caption="Graph by @trevortombe")
@@ -592,13 +640,13 @@ ggplot(plotdata,aes(Ref_Date,total_hours))+
 ```{r oil and gas}
 jobdetailed<-getTABLE("14100201")
 plotdata<-jobdetailed %>%
-  filter(GEO=="Alberta" & Type.of.employee=="All employees" &
-           North.American.Industry.Classification.System..NAICS. %in% c("Oil and gas extraction",
-                        "Mining and quarrying (except oil and gas)",
-                        "Support activities for mining, and oil and gas extraction")) %>%
   rename(NAICS=North.American.Industry.Classification.System..NAICS.) %>%
-  mutate(NAICS=replace(NAICS,NAICS=="Mining and quarrying (except oil and gas)","Mining and quarrying"),
-         NAICS=replace(NAICS,NAICS=="Support activities for mining, and oil and gas extraction","Support activities"),
+  filter(GEO=="Alberta" & Type.of.employee=="All employees" & 
+           (grepl("Oil and gas extraction",NAICS) | grepl("Mining and quarrying",NAICS) |
+              grepl("Support activities for mining, and oil and gas extraction",NAICS))) %>%
+  mutate(NAICS=replace(NAICS,grepl("Mining and quarrying",NAICS),"Mining and quarrying"),
+         NAICS=replace(NAICS,grepl("Support activities",NAICS),"Support activities"),
+         NAICS=replace(NAICS,grepl("Oil and gas extraction",NAICS),"Oil and gas extraction"),
          Ref_Date=as.yearmon(Ref_Date,"%Y/%m"))
 ggplot(plotdata %>% filter(Ref_Date>="Jan 2013"),aes(x=Ref_Date,y=Value,group=NAICS,color=NAICS)) +
   annotate("rect",xmin=as.numeric(as.yearmon("Oct 2014")), xmax=as.numeric(as.yearmon("Oct 2016")), 
@@ -619,14 +667,17 @@ ggplot(plotdata %>% filter(Ref_Date>="Jan 2013"),aes(x=Ref_Date,y=Value,group=NA
 
 ```{r diffusion}
 test<-jobdetailed %>%
-  filter(!(North.American.Industry.Classification.System..NAICS. %in% c("Industrial aggregate including unclassified businesses",
+  rename(NAICS=North.American.Industry.Classification.System..NAICS.) %>%
+  mutate(test=regexpr(" \\[",NAICS)-1,
+         NAICS=ifelse(test>0,substr(NAICS,1,test),NAICS)) %>%
+  filter(!(NAICS %in% c("Industrial aggregate including unclassified businesses",
                                                                         "Industrial aggregate excluding unclassified businesses",
                                                                         "Goods producing industries","Manufacturing",
                                                                         "Non-durable goods","Durable goods",
                                                                         "Service producing industries","Trade")),
          Type.of.employee=="All employees",GEO=="Alberta") %>%
-  group_by(GEO,North.American.Industry.Classification.System..NAICS.) %>%
-  arrange(GEO,North.American.Industry.Classification.System..NAICS.) %>%
+  group_by(GEO,NAICS) %>%
+  arrange(GEO,NAICS) %>%
   mutate(grow=Value>lag(Value,12)) %>%
   filter(!is.na(grow)) %>%
   group_by(GEO,Ref_Date) %>%
@@ -654,7 +705,7 @@ vanunemp<-getTABLE("14100226")
 ```{r vacancy_plots}
 plotdata<-vanunemp %>%
   filter(Job.vacancy.statistics=="Unemployment-to-job vacancies ratio",
-         North.American.Industry.Classification.System..NAICS.=="All unemployed",
+         grepl("All unemployed",North.American.Industry.Classification.System..NAICS.),
          GEO %in% c("Canada","Alberta","Saskatchewan"))
 ggplot(plotdata,aes(Ref_Date,Value,group=GEO,color=GEO)) +
   annotate("rect",xmin=as.numeric(as.yearmon("Oct 2014")), xmax=as.numeric(as.yearmon("Oct 2016")), 
@@ -675,7 +726,7 @@ ggplot(plotdata,aes(Ref_Date,Value,group=GEO,color=GEO)) +
        subtitle="Source: Statistics Canada data table 14-10-0226",caption="Graph by @trevortombe")
 plotdata<-vanunemp %>%
   filter(Job.vacancy.statistics=="Unemployment-to-job vacancies ratio",
-         North.American.Industry.Classification.System..NAICS.=="All unemployed") %>%
+         grepl("All unemployed",North.American.Industry.Classification.System..NAICS.)) %>%
   filter(Ref_Date==max(Ref_Date) | Ref_Date==(max(Ref_Date)-1)) %>%
   left_join(provnames,by="GEO") %>%
   filter(!(short %in% c("CAN","NU","YT","NT")) & !is.na(short))
