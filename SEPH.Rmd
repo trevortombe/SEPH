@@ -570,12 +570,14 @@ ggplot(plotdata,aes(Ref_Date,change,group=Estimate,color=Estimate))+
 ```{r hours}
 plotdata<-wagedata %>%
   filter(GEO==province & Estimate=="Average weekly hours including overtime for hourly employees") %>%
-  filter(Ref_Date>="Jan 2010")
-ggplot(plotdata,aes(Ref_Date,Value))+
+  filter(Ref_Date>="Jan 2010") %>%
+  gettrend("Value")
+ggplot(plotdata,aes(Ref_Date,TC))+
   annotate("rect",xmin=as.numeric(as.yearmon("Oct 2014")), xmax=as.numeric(as.yearmon("Oct 2016")), 
            ymin=-Inf, ymax=+Inf, alpha=0.2, fill="dodgerblue")+
   annotate("text",x=2015.71, y=Inf, vjust=1.25, 
            label="Recession",color="black",size=3,fontface="italic")+
+  geom_line(color="firebrick",linetype="dashed",aes(y=Value))+
   geom_line(size=2,color="firebrick")+
   mytheme +
   scale_y_continuous(breaks=pretty_breaks(n=6)) +
@@ -585,12 +587,14 @@ ggplot(plotdata,aes(Ref_Date,Value))+
 
 plotdata<-wagedata %>%
   filter(GEO==province & Estimate=="Standard work week excluding overtime for salaried employees (exclude overtime)") %>%
-  filter(Ref_Date>="Jan 2010")
-ggplot(plotdata,aes(Ref_Date,Value))+
+  filter(Ref_Date>="Jan 2010") %>%
+  gettrend("Value")
+ggplot(plotdata,aes(Ref_Date,TC))+
   annotate("rect",xmin=as.numeric(as.yearmon("Oct 2014")), xmax=as.numeric(as.yearmon("Oct 2016")), 
            ymin=-Inf, ymax=+Inf, alpha=0.2, fill="dodgerblue")+
   annotate("text",x=2015.71, y=Inf, vjust=1.25, 
            label="Recession",color="black",size=3,fontface="italic")+
+  geom_line(color="firebrick",linetype="dashed",aes(y=Value))+
   geom_line(size=2,color="firebrick")+
   mytheme +
   scale_y_continuous(breaks=pretty_breaks(n=6)) +
