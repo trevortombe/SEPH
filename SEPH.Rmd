@@ -612,6 +612,25 @@ ggplot(plotdata,aes(Ref_Date,TC))+
   labs(x="",y="Hours per Week",title="Average weekly hours in Alberta for Hourly Employees",
        subtitle=paste("Source: Own calculations from ",sourcetable,"-- including overtime; for hourly employees only."),caption="Graph by @trevortombe")
 
+plotdata<-OThours %>%
+  filter(GEO==province & Overtime=="Excluding overtime",
+         NAICS=="Industrial aggregate excluding unclassified businesses") %>%
+  getseas("Overtime")
+ggplot(plotdata,aes(Ref_Date,TC))+
+  annotate("rect",xmin=as.numeric(as.yearmon("Oct 2014")), xmax=as.numeric(as.yearmon("Oct 2016")), 
+           ymin=-Inf, ymax=+Inf, alpha=0.2, fill="dodgerblue")+
+  annotate("rect",xmin=as.numeric(as.yearmon("Sep 2008")), xmax=as.numeric(as.yearmon("Nov 2009")), 
+           ymin=-Inf, ymax=+Inf, alpha=0.2, fill="dodgerblue")+
+  annotate("text",x=2010, y=Inf, vjust=1.25, hjust=0,
+           label="Recession",color="dodgerblue",size=3,fontface="italic",alpha=0.6)+
+  geom_line(color="firebrick",linetype="dashed",aes(y=Value))+
+  geom_line(size=2,color="firebrick")+
+  mytheme +
+  scale_y_continuous(breaks=pretty_breaks(n=6)) +
+  scale_x_yearmon(format="%Y")+
+  labs(x="",y="Hours per Week",title="Average weekly hours in Alberta for Hourly Employees",
+       subtitle=paste("Source: Own calculations from Statistics 14-10-0255 -- excluding overtime; for hourly employees only."),caption="Graph by @trevortombe")
+
 plotdata<-wagedata %>%
   filter(GEO==province & Estimate=="Standard work week excluding overtime for salaried employees (exclude overtime)") %>%
   filter(Ref_Date>="Jan 2000") %>%
@@ -676,53 +695,6 @@ ggplot(plotdata,aes(Ref_Date,total_hours))+
 ```
 
 # Counterfactuals
-
-## If hours held fixed at 2014 levels
-```{r counterfactual fixed hours}
-plotdata<-wagedata %>%
-  filter(GEO=="Alberta" & Estimate=="Employment for hourly paid employees") %>%
-  filter(Ref_Date>="Jan 2010") %>%
-  select(Ref_Date,emp_hrly=Value) %>%
-  left_join(
-    wagedata %>%
-      filter(GEO=="Alberta" & Estimate=="Employment for salaried employees") %>%
-      filter(Ref_Date>="Jan 2010") %>% select(Ref_Date,emp_sal=Value), by="Ref_Date"
-  ) %>%
-  left_join(
-    wagedata %>%
-      filter(GEO=="Alberta" & Estimate=="Average weekly hours including overtime for hourly employees") %>%
-      filter(Ref_Date>="Jan 2010") %>% select(Ref_Date,hours_hrly=Value), by="Ref_Date"
-  ) %>%
-  left_join(
-    wagedata %>%
-      filter(GEO=="Alberta" & Estimate=="Standard work week excluding overtime for salaried employees (exclude overtime)") %>%
-      filter(Ref_Date>="Jan 2010") %>% select(Ref_Date,hours_sal=Value), by="Ref_Date"
-  ) %>%
-  left_join(
-    wagedata %>%
-      filter(GEO=="Alberta" & Estimate=="Average hourly earnings including overtime for hourly employees") %>%
-      filter(Ref_Date>="Jan 2010") %>% select(Ref_Date,wage_hrly=Value), by="Ref_Date"
-  ) %>%
-  left_join(
-    wagedata %>%
-      filter(GEO=="Alberta" & Estimate=="Average hourly earnings including overtime for salaried employees") %>%
-      filter(Ref_Date>="Jan 2010") %>% select(Ref_Date,wage_sal=Value), by="Ref_Date"
-  ) %>%
-  mutate(avgearn=(emp_hrly*hours_hrly*wage_hrly+emp_sal*hours_sal*wage_sal)/(emp_hrly+emp_sal),
-         hrly_share=emp_hrly/(emp_hrly+emp_sal),
-         hrly_share2014=weighted.mean(hrly_share,(year(Ref_Date)==2014)),
-         hours2014_hrly=weighted.mean(hours_hrly,(year(Ref_Date)==2014)),
-         hours2014_sal=weighted.mean(hours_sal,(year(Ref_Date)==2014)),
-         avgearn_fixedhours=(emp_hrly*hours2014_hrly*wage_hrly+emp_sal*hours2014_sal*wage_sal)/(emp_hrly+emp_sal),
-         avgearn_fixedhrlyshare=(hrly_share2014*hours2014_hrly*wage_hrly+(1-hrly_share2014)*hours2014_sal*wage_sal),
-         ratio=avgearn_fixedhrlyshare/avgearn)
-ggplot(plotdata %>% filter(Ref_Date>="Jan 2012"),aes(Ref_Date))+
-  geom_line(aes(y=avgearn,color="Data"))+
-  geom_line(data=plotdata %>% filter(Ref_Date>="Oct 2014"),aes(y=avgearn_fixedhours,color="Fixed Hours"))+
-  geom_line(data=plotdata %>% filter(Ref_Date>="Oct 2014"),
-            aes(y=avgearn_fixedhrlyshare,color="Fixed Hours and Fixed Emp Share"))
-
-```
 
 ## If earnings grew with Canada
 ```{r counterfactual canada}
@@ -944,16 +916,6 @@ plotdata<-wagedata %>%
          type=ifelse(type=="with_canada","National Wage Growth",type),
          type=ifelse(type=="avgearn_fixedhrlyshare","Fixed Hours/OT",type),
          type=ifelse(type=="avgearn_noOTchange_sec","Fixed Sectoral Emp.",type))
-#ggplot(plotdata,aes(Ref_Date,value,group=type,color=type))+
-#  geom_line(size=2,show.legend = F)+
-#  geom_text(data=plotdata %>% filter(Ref_Date==max(Ref_Date)),show.legend = F,
-#            aes(label=type),fontface="bold",hjust=0,nudge_x=1/6)+
-#  mytheme+
-#  scale_y_continuous(label=dollar)+
-#  scale_x_yearmon(limit=c(NA,max(plotdata$Ref_Date)+3),format="%Y")+
-#  scale_color_brewer(name="",palette="Set1")+
-#  labs(y="Dollars per Week",x="",
-#       title="Average Weekly Earnings in Alberta")
 
 # Superimpose these results on the average weekly earnings data
 plotdata2<-seph %>%
@@ -974,6 +936,25 @@ plotdata2<-seph %>%
          `National Wage Growth`=`National Wage Growth`*Data) %>%
   gather(type,value,-Ref_Date) %>%
   filter(Ref_Date>="Jan 2010")
+ggplot(plotdata2 %>% filter(type!="National Wage Growth",
+                            type!="Fixed Sectoral Emp."),aes(Ref_Date,value,group=type,color=type))+
+  geom_line(size=2,show.legend = F)+
+  geom_text(data=plotdata2 %>% filter(Ref_Date==max(Ref_Date)) %>% filter(type!="National Wage Growth",
+                            type!="Fixed Sectoral Emp."),show.legend = F,
+            aes(label=type),fontface="bold",hjust=0,nudge_x=1/6)+
+  mytheme+
+  scale_y_continuous(label=dollar,limit=c(NA,1225))+
+  scale_x_yearmon(limit=c(NA,max(plotdata$Ref_Date)+3),format="%Y")+
+  scale_color_brewer(name="",palette="Set1")+
+  labs(y="Dollars per Week",x="",
+       caption="Source: Calculations and visualization by @trevortombe, based on various Statistics Canada SEPH data",
+       subtitle="Displays average weekly earnings of Albertans in the data, and what earnings would have been if various factors
+were held fixed at their pre-recession (Oct 2014) values. Starting from the data, each counterfactual builds on the last.",
+       title="Average Weekly Earnings in Alberta")
+```
+
+## If OT, Hours, and Sectoral Composition Unchanged
+```{r counterfactual all-in}
 ggplot(plotdata2,aes(Ref_Date,value,group=type,color=type))+
   geom_line(size=2,show.legend = F)+
   geom_text(data=plotdata2 %>% filter(Ref_Date==max(Ref_Date)),show.legend = F,
@@ -987,6 +968,22 @@ ggplot(plotdata2,aes(Ref_Date,value,group=type,color=type))+
        subtitle="Displays average weekly earnings of Albertans in the data, and what earnings would have been if various factors
 were held fixed at their pre-recession (Oct 2014) values. Starting from the data, each counterfactual builds on the last.",
        title="Average Weekly Earnings in Alberta")
+
+plotdata2 %>%
+  select(Ref_Date,type,value) %>%
+  filter(Ref_Date>="Sep 2017") %>%
+  spread(type,value) %>%
+  mutate(hours=`Fixed Hours/OT`-`Data`,
+         sectoral=`Fixed Sectoral Emp.`-`Fixed Hours/OT`,
+         wages=`National Wage Growth`-`Fixed Sectoral Emp.`) %>%
+  select(Ref_Date,hours,sectoral,wages) %>%
+  gather(type,value,-Ref_Date) %>%
+  group_by(type) %>%
+  mutate(change=value-value[1],
+         change_MoM=value-lag(value,1)) %>%
+  ggplot(aes(Ref_Date,change,group=type,color=type))+
+  geom_line(size=1)
+
 ```
 
 
