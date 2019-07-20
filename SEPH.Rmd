@@ -27,7 +27,6 @@ source("core.R")
 
 # Fetches Latest SEPH Data
 seph<-getTABLE("14100223")
-seph<-seph %>% rename(NAICS=North.American.Industry.Classification.System..NAICS.)
 sourcetable<-"Statistics Canada data table 14-10-0223"
 today=max(seph$Ref_Date) # the latest month in the data
 
@@ -39,9 +38,20 @@ sephemp<-seph %>%
 # Wage and Salary Data
 wagedata<-getTABLE("14100222")
 
+# Fixed weight dex of average hourly earnings
+fixedweight<-getTABLE("14100213")
+
+# Over time hours and earnings
+OTpay<-getTABLE("14100205")
+OThours<-getTABLE("14100255")
+
+# Detailed sector job information
+jobdetailed<-getTABLE("14100201")
+
+# Useful dates
 thismonth=as.character(today)
 lastmonth=as.character(today-1/12)
-lastyear=as.character(today-1)
+lastyear=as.character(today-1-1/12)
 
 ```
 
@@ -177,8 +187,6 @@ Growth in employment, by sector.
 
 ```{r by sector}
 plotdata<-as_tibble(seph) %>%
-  mutate(test=regexpr(" \\[",NAICS)-1,
-         NAICS=ifelse(test>0,substr(NAICS,1,test),NAICS)) %>%
   filter(GEO=="Alberta" & Ref_Date>="Jan 2016" & 
            !(NAICS %in% c("Industrial aggregate including unclassified businesses",
                           "Industrial aggregate excluding unclassified businesses",
@@ -214,8 +222,6 @@ ggplot(filter(plotdata,Estimate=="Employment for all employees" & Ref_Date==max(
        subtitle="Source: Statistics Canada data table 14-10-0223.",caption="Graph by @trevortombe.")
 
 plotdata<-as_tibble(seph) %>%
-    mutate(test=regexpr(" \\[",NAICS)-1,
-         NAICS=ifelse(test>0,substr(NAICS,1,test),NAICS)) %>%
   filter(GEO=="Alberta" & Ref_Date>="Jan 2016" & 
            !(NAICS %in% c("Industrial aggregate including unclassified businesses",
                           "Industrial aggregate excluding unclassified businesses",
@@ -252,9 +258,7 @@ ggplot(filter(plotdata,Estimate=="Employment for all employees" & Ref_Date==max(
 
 # Shift in Alberta's employment composition
 start="Oct 2014"
-seph<-seph %>%
-    mutate(test=regexpr(" \\[",NAICS)-1,
-         NAICS=ifelse(test>0,substr(NAICS,1,test),NAICS)) %>% data.table()
+seph<-seph %>% data.table()
 plotdata<-seph[GEO=="Alberta" & Estimate=="Employment for all employees" & Ref_Date>=start & NAICS!="Industrial aggregate including unclassified businesses" &
                  NAICS!="Industrial aggregate excluding unclassified businesses" & NAICS!="Durable goods" & NAICS!="Trade" &
                  NAICS!="Goods producing industries" & NAICS!="Service producing industries" & NAICS!="Non-durable goods"]
@@ -307,8 +311,6 @@ ggplot(test2, aes(x=start, xend=end, y=NAICS, group=NAICS)) +
 # Public vs Private
 ```{r public-v-private}
 plotdata<-seph %>%
-    mutate(test=regexpr(" \\[",NAICS)-1,
-         NAICS=ifelse(test>0,substr(NAICS,1,test),NAICS)) %>%
   filter(Estimate=="Employment for all employees",
          !NAICS %in% c("Industrial aggregate including unclassified businesses",
                        "Industrial aggregate excluding unclassified businesses",
@@ -346,11 +348,8 @@ ggplot(plotdata,aes(Ref_Date,change,group=type,color=type))+
 
 ```{r earnings}
 plotdata<-seph %>%
-    mutate(test=regexpr(" \\[",NAICS)-1,
-         NAICS=ifelse(test>0,substr(NAICS,1,test),NAICS)) %>%
   filter(Estimate=="Average weekly earnings including overtime for all employees",
                  NAICS=="Industrial aggregate excluding unclassified businesses",Ref_Date==max(Ref_Date)) %>%
-  left_join(provnames,by="GEO") %>%
   filter(!(short %in% c("CAN","NU","NT","YT")))
 ggplot(plotdata, aes(x=short,y=Value)) +
 	geom_col(fill="dodgerblue3") +
@@ -448,8 +447,6 @@ ggplot(plotdata,aes(Ref_Date,value,group=type,color=type))+
 ```{r sectoral earnings}
 start="Oct 2014"
 empshare <- seph  %>%
-    mutate(test=regexpr(" \\[",NAICS)-1,
-         NAICS=ifelse(test>0,substr(NAICS,1,test),NAICS)) %>%
   filter(GEO=="Alberta" & Estimate=="Employment for all employees" & Ref_Date>=start & 
            NAICS!="Industrial aggregate including unclassified businesses" &
                  NAICS!="Industrial aggregate excluding unclassified businesses" & NAICS!="Durable goods" & NAICS!="Trade" &
@@ -459,8 +456,6 @@ empshare <- seph  %>%
   ungroup() %>%
   select(Ref_Date,NAICS,share)
 earn <- seph  %>%
-    mutate(test=regexpr(" \\[",NAICS)-1,
-         NAICS=ifelse(test>0,substr(NAICS,1,test),NAICS)) %>%
   filter(GEO=="Alberta" & Estimate=="Average weekly earnings including overtime for all employees" & Ref_Date>=start & 
            NAICS!="Industrial aggregate including unclassified businesses" &
                  NAICS!="Industrial aggregate excluding unclassified businesses" & NAICS!="Durable goods" & NAICS!="Trade" &
@@ -473,10 +468,38 @@ plotdata<-empshare %>%
   mutate(initialshare=max((Ref_Date==start)*share)) %>%
   group_by(Ref_Date) %>%
   summarise(avgearn=weighted.mean(earn,share),
-            avgearn_fixed=weighted.mean(earn,initialshare)) %>%
-  gather(var,value,-Ref_Date)
-ggplot(plotdata,aes(Ref_Date,value,group=var,color=var))+
-  geom_line()
+            avgearn_fixed=weighted.mean(earn,initialshare))
+ggplot(plotdata,aes(Ref_Date,avgearn_fixed/avgearn))+
+  geom_line()+
+  labs(title="How much weekly earnings would be with fixed sector weights")
+
+# The fixed weight index (brief discussion at https://www150.statcan.gc.ca/n1/pub/72-203-g/2013001/part-partie7-eng.htm)
+fixedweight %>%
+  filter(GEO %in% c("Canada","Alberta"),NAICS=="Industrial aggregate excluding unclassified businesses",
+         Ref_Date>="Jan 2010") %>%
+  group_by(GEO) %>%
+  mutate(baseyear=weighted.mean(Value,(year(Ref_Date)==2014)),
+         Value=100*Value/baseyear) %>%
+  gettrend("Value") %>%
+  ggplot(aes(Ref_Date,TC,color=GEO))+geom_line(size=2)+
+  geom_line(aes(y=Value),linetype="dashed")+
+  mytheme+
+  scale_x_yearmon(format="%Y")+
+  scale_color_brewer(name="",palette="Set1")+
+  labs(y="Index (2014=100)",x="",title="Fixed weighted index of average hourly earnings of all employees",
+       caption="Graph by @trevortombe",
+       subtitle="Source: Own calculations from Statistics Canada data table 14-10-0213")
+
+fixedweight %>%
+  filter(GEO %in% c("Canada","Alberta"),NAICS=="Industrial aggregate excluding unclassified businesses",
+         Ref_Date>="Jan 2010") %>%
+  group_by(GEO) %>%
+  mutate(baseyear=weighted.mean(Value,(year(Ref_Date)==2014)),
+         Value=100*Value/baseyear) %>%
+  filter(Ref_Date>="Oct 2014") %>%
+  mutate(change=Value/Value[1]-1) %>%
+  filter(Ref_Date==max(Ref_Date)) %>%
+  select(GEO,change)
 
 
 ```
@@ -570,37 +593,51 @@ ggplot(plotdata,aes(Ref_Date,change,group=Estimate,color=Estimate))+
 ```{r hours}
 plotdata<-wagedata %>%
   filter(GEO==province & Estimate=="Average weekly hours including overtime for hourly employees") %>%
-  filter(Ref_Date>="Jan 2010") %>%
+  filter(Ref_Date>="Jan 2000") %>%
   gettrend("Value")
 ggplot(plotdata,aes(Ref_Date,TC))+
   annotate("rect",xmin=as.numeric(as.yearmon("Oct 2014")), xmax=as.numeric(as.yearmon("Oct 2016")), 
            ymin=-Inf, ymax=+Inf, alpha=0.2, fill="dodgerblue")+
-  annotate("text",x=2015.71, y=Inf, vjust=1.25, 
-           label="Recession",color="black",size=3,fontface="italic")+
+  annotate("rect",xmin=as.numeric(as.yearmon("Sep 2008")), xmax=as.numeric(as.yearmon("Nov 2009")), 
+           ymin=-Inf, ymax=+Inf, alpha=0.2, fill="dodgerblue")+
+  annotate("text",x=2010, y=Inf, vjust=1.25, hjust=0,
+           label="Recession",color="dodgerblue",size=3,fontface="italic",alpha=0.6)+
   geom_line(color="firebrick",linetype="dashed",aes(y=Value))+
   geom_line(size=2,color="firebrick")+
   mytheme +
   scale_y_continuous(breaks=pretty_breaks(n=6)) +
   scale_x_yearmon(format="%Y")+
-  labs(x="",y="Hours per Week",title="Average weekly hours in Alberta",
+  labs(x="",y="Hours per Week",title="Average weekly hours in Alberta for Hourly Employees",
        subtitle=paste("Source: Own calculations from ",sourcetable,"-- including overtime; for hourly employees only."),caption="Graph by @trevortombe")
 
 plotdata<-wagedata %>%
   filter(GEO==province & Estimate=="Standard work week excluding overtime for salaried employees (exclude overtime)") %>%
-  filter(Ref_Date>="Jan 2010") %>%
+  filter(Ref_Date>="Jan 2000") %>%
   gettrend("Value")
 ggplot(plotdata,aes(Ref_Date,TC))+
   annotate("rect",xmin=as.numeric(as.yearmon("Oct 2014")), xmax=as.numeric(as.yearmon("Oct 2016")), 
            ymin=-Inf, ymax=+Inf, alpha=0.2, fill="dodgerblue")+
-  annotate("text",x=2015.71, y=Inf, vjust=1.25, 
-           label="Recession",color="black",size=3,fontface="italic")+
+  annotate("rect",xmin=as.numeric(as.yearmon("Sep 2008")), xmax=as.numeric(as.yearmon("Nov 2009")), 
+           ymin=-Inf, ymax=+Inf, alpha=0.2, fill="dodgerblue")+
+  annotate("text",x=2010, y=Inf, vjust=1.25, hjust=0,
+           label="Recession",color="dodgerblue",size=3,fontface="italic",alpha=0.6)+
   geom_line(color="firebrick",linetype="dashed",aes(y=Value))+
   geom_line(size=2,color="firebrick")+
   mytheme +
   scale_y_continuous(breaks=pretty_breaks(n=6)) +
   scale_x_yearmon(format="%Y")+
-  labs(x="",y="Hours per Week",title="Average weekly hours in Alberta",
-       subtitle=paste("Source: Own calculations from ",sourcetable,"-- including overtime; for salaried workers only."),caption="Graph by @trevortombe")
+  labs(x="",y="Hours per Week",title="Average weekly hours in Alberta for Salaried Employees",
+       subtitle=paste("Source: Own calculations from ",sourcetable,"-- for salaried workers only."),caption="Graph by @trevortombe")
+
+# All provinces
+plotdata<-wagedata %>%
+  filter(Ref_Date==max(Ref_Date) & 
+           Estimate %in% c("Standard work week excluding overtime for salaried employees (exclude overtime)",
+                           "Average weekly hours including overtime for hourly employees")) %>%
+  mutate(Estimate=ifelse(Estimate=="Average weekly hours including overtime for hourly employees","Hourly Employees","Salaried Employees"))
+ggplot(plotdata,aes(short,Value,group=Estimate,fill=Estimate))+
+  geom_col(position="dodge")+
+  labs(title="Average hours worked, by province")
 
 # Total hours
 plotdata<-wagedata %>%
@@ -634,17 +671,269 @@ ggplot(plotdata,aes(Ref_Date,total_hours))+
   scale_x_yearmon(format="%Y")+
   labs(x="",y="Millions of Hours per Month",title="Aggregate Hours of Payroll Employment",
        subtitle=paste("Source: Own calculations from ",sourcetable,"-- includes both hourly and salaried workers"),caption="Graph by @trevortombe")
+```
 
+# Counterfactuals
+
+## If hours held fixed at 2014 levels
+```{r counterfactual fixed hours}
+plotdata<-wagedata %>%
+  filter(GEO=="Alberta" & Estimate=="Employment for hourly paid employees") %>%
+  filter(Ref_Date>="Jan 2010") %>%
+  select(Ref_Date,emp_hrly=Value) %>%
+  left_join(
+    wagedata %>%
+      filter(GEO=="Alberta" & Estimate=="Employment for salaried employees") %>%
+      filter(Ref_Date>="Jan 2010") %>% select(Ref_Date,emp_sal=Value), by="Ref_Date"
+  ) %>%
+  left_join(
+    wagedata %>%
+      filter(GEO=="Alberta" & Estimate=="Average weekly hours including overtime for hourly employees") %>%
+      filter(Ref_Date>="Jan 2010") %>% select(Ref_Date,hours_hrly=Value), by="Ref_Date"
+  ) %>%
+  left_join(
+    wagedata %>%
+      filter(GEO=="Alberta" & Estimate=="Standard work week excluding overtime for salaried employees (exclude overtime)") %>%
+      filter(Ref_Date>="Jan 2010") %>% select(Ref_Date,hours_sal=Value), by="Ref_Date"
+  ) %>%
+  left_join(
+    wagedata %>%
+      filter(GEO=="Alberta" & Estimate=="Average hourly earnings including overtime for hourly employees") %>%
+      filter(Ref_Date>="Jan 2010") %>% select(Ref_Date,wage_hrly=Value), by="Ref_Date"
+  ) %>%
+  left_join(
+    wagedata %>%
+      filter(GEO=="Alberta" & Estimate=="Average hourly earnings including overtime for salaried employees") %>%
+      filter(Ref_Date>="Jan 2010") %>% select(Ref_Date,wage_sal=Value), by="Ref_Date"
+  ) %>%
+  mutate(avgearn=(emp_hrly*hours_hrly*wage_hrly+emp_sal*hours_sal*wage_sal)/(emp_hrly+emp_sal),
+         hrly_share=emp_hrly/(emp_hrly+emp_sal),
+         hrly_share2014=weighted.mean(hrly_share,(year(Ref_Date)==2014)),
+         hours2014_hrly=weighted.mean(hours_hrly,(year(Ref_Date)==2014)),
+         hours2014_sal=weighted.mean(hours_sal,(year(Ref_Date)==2014)),
+         avgearn_fixedhours=(emp_hrly*hours2014_hrly*wage_hrly+emp_sal*hours2014_sal*wage_sal)/(emp_hrly+emp_sal),
+         avgearn_fixedhrlyshare=(hrly_share2014*hours2014_hrly*wage_hrly+(1-hrly_share2014)*hours2014_sal*wage_sal),
+         ratio=avgearn_fixedhrlyshare/avgearn)
+ggplot(plotdata,aes(Ref_Date))+
+  geom_line(aes(y=avgearn,color="Data"))+
+  geom_line(aes(y=avgearn_fixedhours,color="Fixed Hours"))+
+  geom_line(aes(y=avgearn_fixedhrlyshare,color="Fixed Hours and Fixed Emp Share"))
 
 ```
+
+## If earnings grew with Canada
+```{r counterfactual canada}
+plotdata<-seph %>%
+  filter(Estimate=="Average weekly earnings including overtime for all employees",
+         grepl("Industrial aggregate excluding unclassified businesses",NAICS),
+           GEO!="Canada" & GEO!="Alberta" & Ref_Date>="Jan 2010") %>%
+  select(GEO,Ref_Date,CanadaEarnings=Value) %>%
+  left_join(sephemp %>% select(GEO,Ref_Date,emp=Value),by=c("GEO","Ref_Date")) %>%
+  group_by(Ref_Date) %>%
+  summarise(CanadaEarnings=weighted.mean(CanadaEarnings,emp)) %>%
+  left_join(
+    seph %>%
+  filter(Estimate=="Average weekly earnings including overtime for all employees",
+         grepl("Industrial aggregate excluding unclassified businesses",NAICS),
+           GEO=="Alberta" & Ref_Date>="Jan 2010") %>%
+  select(Ref_Date,AlbertaEarnings=Value)
+  ) %>%
+    mutate(CanGrowth=CanadaEarnings/max(CanadaEarnings*(Ref_Date=="Oct 2014")),
+           ABnew=ifelse(Ref_Date>="Oct 2014",CanGrowth*max(AlbertaEarnings*(Ref_Date=="Oct 2014")),AlbertaEarnings),
+           gap=ABnew/AlbertaEarnings)
+ggplot(plotdata,aes(Ref_Date))+
+  geom_line(aes(y=ABnew),color="dodgerblue3",size=2)+
+  geom_line(aes(y=AlbertaEarnings),color="firebrick",size=2)+
+  annotate('text',x=2017.25,hjust=1,y=1255,label="If Alberta Earnings Grew at the\nSame Rate as the Rest of Canada",
+           color="dodgerblue3",fontface="bold")+
+  annotate('text',x=2016.5,hjust=1,y=1085,label="Data",color="firebrick",fontface="bold")+
+  mytheme+
+	scale_x_yearmon(format="%Y")+
+  scale_y_continuous(label=dollar)+
+  labs(x="",y="Dollars per Week",
+       title="Average Weekly Earnings in Alberta, Actual vs Growth w/ RoC",
+       caption="Graph by @trevortombe",
+       subtitle="Source: Own calculations from Statistics Canada data table 14-10-0223")
+
+```
+
+## If overtime remained unchanged
+```{r overtime fixed}
+plotdata<-OTpay %>%
+  filter(GEO=="Alberta",NAICS=="Industrial aggregate excluding unclassified businesses") %>%
+  select(Ref_Date,Overtime,Value) %>%
+  spread(Overtime,Value) %>%
+  mutate(Overtime=`Including overtime`/`Excluding overtime`-1)
+ggplot(plotdata,aes(Ref_Date,Overtime))+stat_seas()+
+  scale_y_continuous(label=percent)+
+  labs(title="Average hourly earnings, ratio of 'with OT' versus 'without OT'",y="Per Cent",
+       subtitle="Read as: overtime hours equivalent to X% additional pay per hour across all hours")
+
+plotdata<-OThours %>%
+  filter(GEO=="Alberta",NAICS=="Industrial aggregate excluding unclassified businesses") %>%
+  select(GEO,Ref_Date,Overtime,Value) %>%
+  spread(Overtime,Value) %>%
+  mutate(Value=`Including overtime`-`Excluding overtime`) %>%
+  getseas("GEO")
+ggplot(plotdata,aes(Ref_Date,TC))+
+  geom_line(aes(y=Value),linetype="dashed",color="firebrick")+
+  geom_line(size=2,color="firebrick")+
+  labs(x="",title="Average overtime hours in Alberta",y="Hours per week",
+       caption="Graph by @trevortombe",
+       subtitle="Source: Own calculations from Statistics Canada data table 14-10-0255.")+
+	mytheme +
+	scale_x_yearmon(format="%Y")
+
+
+test<-OTpay %>%
+  filter(Overtime=="Including overtime") %>%
+  rename(wage=Value) %>%
+  mutate(levels=nchar(NAICScode)) %>%
+  filter(GEO=="Alberta",(levels==2 | levels==3 | NAICS=="31-33" | NAICS=="61,611")) %>%
+  select(GEO,Ref_Date,NAICS,wage) %>%
+  drop_na() %>%
+  left_join(jobdetailed %>% filter(Type.of.employee=="Employees paid by the hour") %>%
+              select(GEO,NAICS,Ref_Date,emp=Value),by=c("NAICS","Ref_Date","GEO")) %>%
+  drop_na() %>%
+  group_by(NAICS) %>%
+  mutate(baseweight=max((Ref_Date=="Oct 2014")*emp)) %>%
+  group_by(Ref_Date) %>%
+  summarise(wage_data=weighted.mean(wage,emp),
+            wage_fixed=weighted.mean(wage,baseweight)) %>%
+  mutate(wage_sec_adj=wage_fixed/wage_data)
+test2<-OThours %>%
+  filter(Overtime=="Including overtime") %>%
+  rename(hours=Value) %>%
+  mutate(levels=nchar(NAICScode)) %>%
+  filter(GEO=="Alberta",(levels==2 | levels==3 | NAICS=="31-33" | NAICS=="61,611")) %>%
+  select(GEO,Ref_Date,NAICS,hours) %>%
+  drop_na() %>%
+  left_join(jobdetailed %>% filter(Type.of.employee=="Employees paid by the hour") %>%
+              select(GEO,NAICS,Ref_Date,emp=Value),by=c("NAICS","Ref_Date","GEO")) %>%
+  drop_na() %>%
+  group_by(NAICS) %>%
+  mutate(baseweight=max((Ref_Date=="Oct 2014")*emp)) %>%
+  group_by(Ref_Date) %>%
+  summarise(hours_data=weighted.mean(hours,emp),
+         hours_fixed=weighted.mean(hours,baseweight)) %>%
+  mutate(hrs_sec_adj=hours_fixed/hours_data)
+
+# as above, but for salaried
+earn_salary_data<-getTABLE("14100209")
+hours_salary_data<-getTABLE("14100211")
+test3<-earn_salary_data %>%
+  rename(wage=Value) %>%
+  mutate(levels=nchar(NAICScode)) %>%
+  filter(GEO=="Alberta",(levels==2 | levels==3 | NAICS=="31-33" | NAICS=="61,611")) %>%
+  select(GEO,Ref_Date,NAICS,wage) %>%
+  drop_na() %>%
+  left_join(jobdetailed %>% filter(Type.of.employee=="Salaried employees paid a fixed salary") %>%
+              select(GEO,NAICS,Ref_Date,emp=Value),by=c("NAICS","Ref_Date","GEO")) %>%
+  drop_na() %>%
+  group_by(NAICS) %>%
+  mutate(baseweight=max((Ref_Date=="Oct 2014")*emp)) %>%
+  group_by(Ref_Date) %>%
+  summarise(wage_data=weighted.mean(wage,emp),
+            wage_fixed=weighted.mean(wage,baseweight)) %>%
+  mutate(wage_sec_adj_salary=wage_fixed/wage_data)
+test4<-hours_salary_data %>%
+  rename(hours=Value) %>%
+  mutate(levels=nchar(NAICScode)) %>%
+  filter(GEO=="Alberta",(levels==2 | levels==3 | NAICS=="31-33" | NAICS=="61,611")) %>%
+  select(GEO,Ref_Date,NAICS,hours) %>%
+  drop_na() %>%
+  left_join(jobdetailed %>% filter(Type.of.employee=="Salaried employees paid a fixed salary") %>%
+              select(GEO,NAICS,Ref_Date,emp=Value),by=c("NAICS","Ref_Date","GEO")) %>%
+  drop_na() %>%
+  group_by(NAICS) %>%
+  mutate(baseweight=max((Ref_Date=="Oct 2014")*emp)) %>%
+  group_by(Ref_Date) %>%
+  summarise(hours_data=weighted.mean(hours,emp),
+         hours_fixed=weighted.mean(hours,baseweight)) %>%
+  mutate(hrs_sec_adj_salary=hours_fixed/hours_data)
+
+
+noOT<-OTpay %>%
+  filter(GEO=="Alberta",NAICS=="Industrial aggregate excluding unclassified businesses") %>%
+  select(Ref_Date,Overtime,Value) %>%
+  spread(Overtime,Value) %>%
+  mutate(wage_adjust=`Including overtime`/`Excluding overtime`) %>% 
+  select(Ref_Date,wage_adjust) %>%
+  mutate(OT_wage_adjust=max(wage_adjust*(Ref_Date=="Oct 2014"))/wage_adjust) %>%
+  left_join(
+    OThours %>%
+      filter(GEO=="Alberta",NAICS=="Industrial aggregate excluding unclassified businesses") %>%
+      select(GEO,Ref_Date,Overtime,Value) %>%
+      spread(Overtime,Value) %>%
+      mutate(OT_hours=`Including overtime`-`Excluding overtime`) %>%
+      select(Ref_Date,OT_hours) %>%
+      mutate(OT_hours_adjust=max(OT_hours*(Ref_Date=="Oct 2014"))-OT_hours)
+  )
+plotdata<-wagedata %>%
+  filter(GEO=="Alberta" & Estimate=="Employment for hourly paid employees") %>%
+  filter(Ref_Date>="Jan 2010") %>%
+  select(Ref_Date,emp_hrly=Value) %>%
+  left_join(
+    wagedata %>%
+      filter(GEO=="Alberta" & Estimate=="Employment for salaried employees") %>%
+      filter(Ref_Date>="Jan 2010") %>% select(Ref_Date,emp_sal=Value), by="Ref_Date"
+  ) %>%
+  left_join(
+    wagedata %>%
+      filter(GEO=="Alberta" & Estimate=="Average weekly hours including overtime for hourly employees") %>%
+      filter(Ref_Date>="Jan 2010") %>% select(Ref_Date,hours_hrly=Value), by="Ref_Date"
+  ) %>%
+  left_join(
+    wagedata %>%
+      filter(GEO=="Alberta" & Estimate=="Standard work week excluding overtime for salaried employees (exclude overtime)") %>%
+      filter(Ref_Date>="Jan 2010") %>% select(Ref_Date,hours_sal=Value), by="Ref_Date"
+  ) %>%
+  left_join(
+    wagedata %>%
+      filter(GEO=="Alberta" & Estimate=="Average hourly earnings including overtime for hourly employees") %>%
+      filter(Ref_Date>="Jan 2010") %>% select(Ref_Date,wage_hrly=Value), by="Ref_Date"
+  ) %>%
+  left_join(
+    wagedata %>%
+      filter(GEO=="Alberta" & Estimate=="Average hourly earnings including overtime for salaried employees") %>%
+      filter(Ref_Date>="Jan 2010") %>% select(Ref_Date,wage_sal=Value), by="Ref_Date"
+  ) %>%
+  left_join(noOT, by="Ref_Date") %>%
+  left_join(test %>% select(Ref_Date,wage_sec_adj), by="Ref_Date") %>%
+  left_join(test2 %>% select(Ref_Date,hrs_sec_adj), by="Ref_Date") %>%
+  left_join(test3 %>% select(Ref_Date,wage_sec_adj_salary), by="Ref_Date") %>%
+  left_join(test4 %>% select(Ref_Date,hrs_sec_adj_salary), by="Ref_Date") %>%
+  mutate(avgearn=(emp_hrly*hours_hrly*wage_hrly+emp_sal*hours_sal*wage_sal)/(emp_hrly+emp_sal),
+         hrly_share=emp_hrly/(emp_hrly+emp_sal),
+         hrly_share2014=max(hrly_share*(Ref_Date=="Oct 2014")),
+         hours2014_hrly=max(hours_hrly*(Ref_Date=="Oct 2014")),
+         hours2014_sal=max(hours_sal*(Ref_Date=="Oct 2014")),
+         avgearn_fixedhours=(emp_hrly*hours2014_hrly*wage_hrly+emp_sal*hours2014_sal*wage_sal)/(emp_hrly+emp_sal),
+         avgearn_fixedhrlyshare=(hrly_share2014*hours2014_hrly*wage_hrly+(1-hrly_share2014)*hours2014_sal*wage_sal),
+         avgearn_noOTchange=(hrly_share2014*hours2014_hrly*wage_hrly*OT_wage_adjust+(1-hrly_share2014)*hours2014_sal*wage_sal),
+         avgearn_noOTchange_sec=(hrly_share2014*hours2014_hrly*wage_hrly*OT_wage_adjust*wage_sec_adj+(1-hrly_share2014)*hours2014_sal*wage_sal*wage_sec_adj_salary),
+         ratio=avgearn_fixedhrlyshare/avgearn)
+ggplot(plotdata,aes(Ref_Date))+
+  geom_line(aes(y=avgearn,color="Data"))+
+  geom_line(aes(y=avgearn_fixedhours,color="Fixed Hours"))+
+  geom_line(aes(y=avgearn_noOTchange,color="Fixed Hours w/ OT Adj."))+
+  geom_line(aes(y=avgearn_noOTchange_sec,color="Fixed Hours w/ OT Adj. w/ Sec Adj."))
+
+plotdata %>% select(Ref_Date,avgearn,avgearn_fixedhours,avgearn_noOTchange,avgearn_noOTchange_sec) %>%
+  gather(type,Value,-Ref_Date) %>%
+  group_by(type) %>%
+  filter(Ref_Date>="Oct 2014") %>%
+  mutate(change=Value/Value[1]-1) %>%
+  filter(Ref_Date==max(Ref_Date))
+
+```
+
 
 
 # Oil and Gas Detail
 
 ```{r oil and gas}
-jobdetailed<-getTABLE("14100201")
 plotdata<-jobdetailed %>%
-  rename(NAICS=North.American.Industry.Classification.System..NAICS.) %>%
   filter(GEO=="Alberta" & Type.of.employee=="All employees" & 
            (grepl("Oil and gas extraction",NAICS) | grepl("Mining and quarrying",NAICS) |
               grepl("Support activities for mining, and oil and gas extraction",NAICS))) %>%
@@ -670,10 +959,7 @@ ggplot(plotdata %>% filter(Ref_Date>="Jan 2013"),aes(x=Ref_Date,y=Value,group=NA
 # Diffusion Index
 
 ```{r diffusion}
-test<-jobdetailed %>%
-  rename(NAICS=North.American.Industry.Classification.System..NAICS.) %>%
-  mutate(test=regexpr(" \\[",NAICS)-1,
-         NAICS=ifelse(test>0,substr(NAICS,1,test),NAICS)) %>%
+plotdata<-jobdetailed %>%
   filter(!(NAICS %in% c("Industrial aggregate including unclassified businesses",
                                                                         "Industrial aggregate excluding unclassified businesses",
                                                                         "Goods producing industries","Manufacturing",
@@ -687,7 +973,7 @@ test<-jobdetailed %>%
   group_by(GEO,Ref_Date) %>%
   summarise(share=mean(grow)) %>%
   filter(Ref_Date>="Jan 2005")
-ggplot(test,aes(Ref_Date,share))+geom_line(size=2,color="firebrick")+
+ggplot(plotdata,aes(Ref_Date,share))+geom_line(size=2,color="firebrick")+
   geom_hline(yintercept=0.5,size=1)+
   mytheme+
   scale_y_continuous(label=percent)+
@@ -709,7 +995,7 @@ vanunemp<-getTABLE("14100226")
 ```{r vacancy_plots}
 plotdata<-vanunemp %>%
   filter(Job.vacancy.statistics=="Unemployment-to-job vacancies ratio",
-         grepl("All unemployed",North.American.Industry.Classification.System..NAICS.),
+         grepl("All unemployed",NAICS),
          GEO %in% c("Canada","Alberta","Saskatchewan"))
 ggplot(plotdata,aes(Ref_Date,Value,group=GEO,color=GEO)) +
   annotate("rect",xmin=as.numeric(as.yearmon("Oct 2014")), xmax=as.numeric(as.yearmon("Oct 2016")), 
@@ -730,9 +1016,8 @@ ggplot(plotdata,aes(Ref_Date,Value,group=GEO,color=GEO)) +
        subtitle="Source: Statistics Canada data table 14-10-0226",caption="Graph by @trevortombe")
 plotdata<-vanunemp %>%
   filter(Job.vacancy.statistics=="Unemployment-to-job vacancies ratio",
-         grepl("All unemployed",North.American.Industry.Classification.System..NAICS.)) %>%
+         grepl("All unemployed",NAICS)) %>%
   filter(Ref_Date==max(Ref_Date) | Ref_Date==(max(Ref_Date)-1)) %>%
-  left_join(provnames,by="GEO") %>%
   filter(!(short %in% c("CAN","NU","YT","NT")) & !is.na(short))
 ggplot(plotdata, aes(x=short,y=Value,group=as.character(Ref_Date),fill=as.character(Ref_Date))) +
   geom_col(position="dodge") +

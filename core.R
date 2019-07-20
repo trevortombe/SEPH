@@ -31,38 +31,31 @@ getTABLE<-function(x) {
     download.file(url,temp)
   }
   unzip(temp,paste0(x,".csv"))
-  rawdata<-read.csv(paste0(x,".csv"),stringsAsFactors=FALSE)
+  rawdata<-read.csv(paste0(x,".csv"),encoding="UTF-8",stringsAsFactors=FALSE)
   colnames(rawdata)[1]<-"Ref_Date"
   data<-rawdata %>%
     dplyr::rename(Value=VALUE) %>%
     select(-UOM_ID,-SCALAR_ID)
   if (class(data$Ref_Date)=="character" & !grepl("/",data[1,"Ref_Date"])){
-    data<-data %>% #mutate(Ref_Date=ifelse(grepl("/",Ref_Date),Ref_Date,Ref_Date=as.yearmon(Ref_Date)))
+    data<-data %>%
       mutate(Ref_Date=as.yearmon(Ref_Date))
   }
-  return(data)
-}
-getTABLEraw<-function(x) {
-  url<-paste0("https://www150.statcan.gc.ca/n1/tbl/csv/",x,"-eng.zip")
-  temp<-tempfile()
-  download.file(url,temp)
-  if (has_warning(unzip(temp,paste0(x,".csv")))) { # Avoids html landing page
-    download.file(url,temp)
+  if ("GEO" %in% colnames(data)){
+    data <- data %>%
+      left_join(provnames,by="GEO")
   }
-  unzip(temp,paste0(x,".csv"))
-  rawdata<-read.csv(paste0(x,".csv"),stringsAsFactors=FALSE)
-  colnames(rawdata)[1]<-"Ref_Date"
-  return(rawdata)
-}
-loadTABLE<-function(x) {
-  rawdata<-read.csv(paste0(x,".csv"),stringsAsFactors=FALSE)
-  colnames(rawdata)[1]<-"Ref_Date"
-    data<-rawdata %>%
-      dplyr::rename(Value=VALUE) %>%
-      select(-UOM_ID,-SCALAR_ID)
-    if (class(data$Ref_Date)=="character" & !grepl("/",data$Ref_Date)){
-    data<-data %>% #mutate(Ref_Date=ifelse(grepl("/",Ref_Date),Ref_Date,Ref_Date=as.yearmon(Ref_Date)))
-      mutate(Ref_Date=as.yearmon(Ref_Date))
+  if ("North.American.Industry.Classification.System..NAICS." %in% colnames(data)){
+    data <- data %>%
+      rename(NAICS=North.American.Industry.Classification.System..NAICS.) %>%
+      mutate(NAICScode=str_match(NAICS,"\\[(.*?)\\]")[,2],
+             NAICS=ifelse(regexpr(" \\[",NAICS)>1,
+                          substr(NAICS,1,regexpr(" \\[",NAICS)-1),NAICS))
+  }
+  if (any(grepl("North.American.Product.Classification.System..NAPCS.",colnames(data)))){
+    colnames(data)[grepl("North.American.Product.Classification.System..NAPCS.",colnames(data))]<-"NAPCS"
+    data <- data %>%
+      mutate(NAPCS=ifelse(regexpr(" \\[",NAPCS)>1,
+                          substr(NAPCS,1,regexpr(" \\[",NAPCS)-1),NAPCS))
   }
   return(data)
 }
@@ -288,6 +281,25 @@ gettrend<-function(x,y){
   rename_(.dots = setNames("var", y))
   return(x)
 }
+
+# Construct own within-group seasonal adjustment with trend
+getseas<-function(df,g){
+  df<-df %>%
+    rename(group_var=g)
+  p<-ggsdc(df,aes(Ref_Date,Value,group=group_var,color=group_var),
+           method="seas")+geom_line()
+  temp<-p$data %>%
+    filter(component %in% c("irregular","trend")) %>%
+    group_by(x,group_var) %>%
+    summarise(Value=sum(y)) %>%
+    group_by(group_var) %>%
+    rename(Ref_Date=x) %>%
+    gettrend("Value") %>%
+    rename_(.dots = setNames("group_var", g)) %>%
+    ungroup()
+  return(temp)
+}
+
 
 
 ########
