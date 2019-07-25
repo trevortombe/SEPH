@@ -943,7 +943,7 @@ ggplot(plotdata2 %>% filter(type!="National Wage Growth",
                             type!="Fixed Sectoral Emp."),show.legend = F,
             aes(label=type),fontface="bold",hjust=0,nudge_x=1/6)+
   mytheme+
-  scale_y_continuous(label=dollar,limit=c(NA,1225))+
+  scale_y_continuous(label=dollar)+
   scale_x_yearmon(limit=c(NA,max(plotdata$Ref_Date)+3),format="%Y")+
   scale_color_brewer(name="",palette="Set1")+
   labs(y="Dollars per Week",x="",
@@ -960,7 +960,7 @@ ggplot(plotdata2,aes(Ref_Date,value,group=type,color=type))+
   geom_text(data=plotdata2 %>% filter(Ref_Date==max(Ref_Date)),show.legend = F,
             aes(label=type),fontface="bold",hjust=0,nudge_x=1/6)+
   mytheme+
-  scale_y_continuous(label=dollar,limit=c(NA,1300))+
+  scale_y_continuous(label=dollar)+
   scale_x_yearmon(limit=c(NA,max(plotdata$Ref_Date)+3),format="%Y")+
   scale_color_brewer(name="",palette="Set1")+
   labs(y="Dollars per Week",x="",
