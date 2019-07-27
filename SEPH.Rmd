@@ -1079,6 +1079,36 @@ ggplot(plotdata2,aes(Ref_Date,value,group=type,color=type))+
 were held fixed at their pre-recession (Oct 2014) values. Starting from the data, each counterfactual builds on the last.",
        title="Average Weekly Earnings in Alberta")
 
+plotdata2 %>% filter(Ref_Date==max(Ref_Date))
+
+# waterfall of the earnings gap
+plotdata3<-data.frame(
+  type=c("Earnings","Fixed\nHours/OT","Fixed Hours/OT\nand Sectors",
+           "If Grew\nwith Canada","Counterfactual"),
+  value=c(0,33,48,38,1301-1182)
+) %>%
+  mutate(type=factor(type,levels=type),
+         id=seq_along(value),
+         sign=ifelse(value>0,"in","out"),
+         sign=ifelse(id==n(),"net",sign),
+         end=cumsum(value),
+         end=ifelse(id==n(),0,end),
+         start=ifelse(id>1,lag(end,1),0))
+ggplot(plotdata3)+
+  geom_rect(aes(x=type,xmin = id - 0.4, xmax = id + 0.4,ymin=end,ymax=start,fill=sign),show.legend = F)+
+  geom_hline(yintercept=0,size=1)+
+  geom_segment(data=plotdata3 %>% filter(sign!="net"),aes(x=id+0.45,xend=id+0.45,y=start,yend=end),
+               size=0.75,arrow=arrow(type="closed",length=unit(0.1,"cm")))+
+  mythemebar+
+  scale_fill_manual(name="",values=c("#377EB8","#4DAF4A","#E41A1C"))+
+  scale_y_continuous(breaks=pretty_breaks(n=6),label=dollar)+
+  labs(x="",y="Millions of Dollars",
+       title="Change in Alberta's 2017-18 Deficit, by Component",
+       subtitle="Source: Alberta Q3 Fiscal Update, 2017-18.",
+       caption="* The Balancing Pool owns many of the cancelled coal power PPAs; when electricity prices rise, so does its revenue.
+Graph by @trevortombe")
+
+
 plotdata2 %>%
   select(Ref_Date,type,value) %>%
   filter(Ref_Date>="Oct 2014") %>%
