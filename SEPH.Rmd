@@ -1081,6 +1081,45 @@ were held fixed at their pre-recession (Oct 2014) values. Starting from the data
 
 plotdata2 %>% filter(Ref_Date==max(Ref_Date))
 
+# Relabelled
+plotdata2b<-plotdata2 %>%
+  select(Ref_Date,value,type) %>%
+  spread(type,value) %>%
+  select(Ref_Date,Data) %>%
+  left_join(
+    fixedweight %>%
+        filter(GEO %in% c("Canada","Alberta"),NAICS=="Industrial aggregate excluding unclassified businesses",Ref_Date>="Jan 2010") %>%
+        getseas("GEO") %>%
+        group_by(GEO) %>%
+        mutate(Value=100*Value/max(Value*(Ref_Date=="Oct 2014")),
+               TC=100*TC/max(TC*(Ref_Date=="Oct 2014"))) %>%
+      select(Ref_Date,GEO,TC) %>%
+      spread(GEO,TC) %>%
+      mutate(ratio=Canada/Alberta) %>%
+      select(Ref_Date,ratio),by="Ref_Date"
+  ) %>%
+  mutate(ratio=ifelse(Ref_Date>="Oct 2014",ratio*Data,Data)) %>%
+  gather(type,value,-Ref_Date) %>%
+    mutate(type=ifelse(type=="ratio","If Wage Growth\nMatched Canada's",type))
+ggplot(plotdata2b,aes(Ref_Date,value,group=type,color=type))+
+  geom_line(size=2,show.legend = F)+
+  geom_line(data=plotdata2b %>% filter(type=="Data"),
+            size=2,show.legend = F,color="#E41A1C")+ # to fix colors
+  geom_text(data=plotdata2b %>% filter(Ref_Date==max(Ref_Date)),show.legend = F,
+            aes(label=type),fontface="bold",hjust=0,nudge_x=1/6)+
+  mytheme+
+  scale_y_continuous(label=dollar,limit=c(1040,1250))+
+  scale_x_yearmon(limit=c(2012,max(plotdata$Ref_Date)+1.75),format="%Y")+
+  scale_color_brewer(name="",palette="Set1")+
+  labs(y="Dollars per Week",x="",
+       caption="Source: Calculations and visualization by @trevortombe, based on various Statistics Canada SEPH data.
+Uses the trend-cycle estimate of the fixed-weight wage index from 14-10-0213-01.",
+       subtitle="Displays average weekly earnings of Albertans in the data, and what earnings would have been if hourly wages grew at the same rate 
+as the rest of Canada, holding fixed hours/overtime/employment composition/etc.",
+       title="Average Weekly Earnings in Alberta if Wage Growth Matched Canada's")
+
+plotdata2b %>% filter(Ref_Date==max(Ref_Date))
+
 # waterfall of the earnings gap
 plotdata3<-data.frame(
   type=c("Earnings","Fixed\nHours/OT","Fixed Hours/OT\nand Sectors",

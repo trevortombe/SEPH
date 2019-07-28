@@ -59,6 +59,35 @@ getTABLE<-function(x) {
   }
   return(data)
 }
+loadTABLE<-function(x) {
+  rawdata<-read.csv(paste0(x,".csv"),encoding="UTF-8",stringsAsFactors=FALSE)
+  colnames(rawdata)[1]<-"Ref_Date"
+  data<-rawdata %>%
+    dplyr::rename(Value=VALUE) %>%
+    select(-UOM_ID,-SCALAR_ID)
+  if (class(data$Ref_Date)=="character" & !grepl("/",data[1,"Ref_Date"])){
+    data<-data %>%
+      mutate(Ref_Date=as.yearmon(Ref_Date))
+  }
+  if ("GEO" %in% colnames(data)){
+    data <- data %>%
+      left_join(provnames,by="GEO")
+  }
+  if ("North.American.Industry.Classification.System..NAICS." %in% colnames(data)){
+    data <- data %>%
+      rename(NAICS=North.American.Industry.Classification.System..NAICS.) %>%
+      mutate(NAICScode=str_match(NAICS,"\\[(.*?)\\]")[,2],
+             NAICS=ifelse(regexpr(" \\[",NAICS)>1,
+                          substr(NAICS,1,regexpr(" \\[",NAICS)-1),NAICS))
+  }
+  if (any(grepl("North.American.Product.Classification.System..NAPCS.",colnames(data)))){
+    colnames(data)[grepl("North.American.Product.Classification.System..NAPCS.",colnames(data))]<-"NAPCS"
+    data <- data %>%
+      mutate(NAPCS=ifelse(regexpr(" \\[",NAPCS)>1,
+                          substr(NAPCS,1,regexpr(" \\[",NAPCS)-1),NAPCS))
+  }
+  return(data)
+}
 
 # Project dataset "x" from date "y" onwards for z years
 ProjectOut<-function(x,y,z) {
