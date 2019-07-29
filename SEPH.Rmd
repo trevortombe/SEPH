@@ -18,7 +18,7 @@ always_allow_html: yes
 
 ```{r setup, include=FALSE}
 library(knitr)
-knitr::opts_chunk$set(message=F, warning=F,fig.width = 7.5,fig.height = 4,fig.align="center",cache=TRUE,echo=F)
+knitr::opts_chunk$set(message=F, warning=F,fig.width = 7,fig.height = 3.75,fig.align="center",cache=TRUE,echo=F,dpi=300)
 
 ```
 
@@ -305,10 +305,53 @@ ggplot(test2, aes(x=start, xend=end, y=NAICS, group=NAICS)) +
   scale_x_continuous(expand=c(0,0),limits=c(0,0.13),label=percent,breaks=pretty_breaks(n=8)) + 
   labs(x="Share of Total Payroll Employment (%)", 
        y=NULL, 
-       title="Where Are Alberta's Jobs? The Changing Composition Since Oct 2014", 
-       subtitle="Source: Own calculations from Statistics Canada data table 14-10-0223. October 2014 is used as the start of the recession.",
+       title="The Changing Composition of Alberta's Jobs", 
+       subtitle="Source: Own calculations from Statistics Canada data table 14-10-0223. The recession started Oct 2014.",
        caption="Graph by @trevortombe")
 ```
+
+```{r sector high low wages}
+# Change in employment by wage high vs lower wages
+plotdata<-seph %>%
+  filter(GEO=="Alberta",!(NAICS %in% c("Industrial aggregate including unclassified businesses",
+                                       "Industrial aggregate excluding unclassified businesses","Durable goods",
+                                       "Non-durable goods","Trade",
+                                       "Goods producing industries","Service producing industries"))) %>%
+  mutate(variable=ifelse(grepl("Employment",Estimate),"emp","earn")) %>%
+  select(Ref_Date,NAICS,variable,Value) %>%
+  spread(variable,Value) %>%
+  left_join(OTpay %>% filter(GEO=="Alberta",
+                             Overtime=="Excluding overtime") %>%
+              select(Ref_Date,NAICS,wage=Value),by=c("NAICS","Ref_Date")) %>%
+  group_by(NAICS) %>%
+  mutate(startemp=weighted.mean(emp,Ref_Date=="Oct 2014"),
+         startwage=weighted.mean(wage,Ref_Date=="Oct 2014"),
+         change=emp-startemp,
+         above30=(startwage>=30)*1,
+         above30=ifelse(is.na(above30),0,above30)) %>%
+  group_by(Ref_Date,above30) %>%
+  summarise(change=sum(change))
+ggplot(plotdata %>% filter(Ref_Date>="Oct 2014"),aes(Ref_Date,change,group=above30,color=as.character(above30)))+
+  geom_hline(yintercept=0,size=1)+
+  geom_line(size=2,show.legend = F)+
+  annotate("text",x=2018.7,hjust=1,y=25000,label="Average Wages Below $30",
+           color="firebrick",fontface="bold")+
+  annotate("text",x=2017,hjust=0,y=-65000,label="Average Wages Above $30",
+           color="dodgerblue3",fontface="bold")+
+  geom_point(data=plotdata %>% filter(Ref_Date=="Oct 2014"),
+             aes(y=0),size=3,color="black")+
+  annotate('text',x=2014+9/12,y=20000,label="Start of\nRecession",size=3,hjust=0.5)+
+  mytheme+
+  scale_color_manual(name="",values=c("firebrick","dodgerblue3"))+
+  scale_y_continuous("Change in Payroll Employment",label=comma,limit=c(NA,50000))+
+  scale_x_continuous("")+
+  labs(title="Employment Changes in Higher vs Lower Paying Sectors",
+       subtitle="Displays the change in payroll employment in Alberta since October 2014 in sectors paying above and below $30 per hour.
+Source: Own calculations from Statistics Canada data tables 14-10-0205 and 14-10-0223",
+       caption="Graph by @trevortombe")
+
+```
+
 
 # Public vs Private
 ```{r public-v-private}
@@ -439,6 +482,22 @@ ggplot(plotdata,aes(Ref_Date,value,group=type,color=type))+
 	mytheme +
 	scale_colour_brewer(name="",labels=c("Inflation-Adjusted (2010$)","Nominal Dollars"),palette="Set1") +
 	scale_y_continuous(breaks=pretty_breaks(n=6),labels=dollar) +
+	scale_x_yearmon(format = "%Y",n=8) +
+	labs(x="",y="Dollars",title="Average Weekly Earnings in Alberta",
+		subtitle=paste("Source: Own calculations from",sourcetable,"and 18-10-0006"),caption="Graph by @trevortombe")
+
+ggplot(plotdata,aes(Ref_Date,value,group=type,color=type))+
+  annotate("rect",xmin=as.numeric(as.yearmon("Oct 2014")), xmax=as.numeric(as.yearmon("Oct 2016")), 
+           ymin=-Inf, ymax=+Inf, alpha=0.2, fill="dodgerblue")+
+  annotate("text",x=2015.71, y=Inf, vjust=1.25, 
+           label="Recession",color="black",size=3,fontface="italic")+
+  geom_line(size=2) +
+  geom_text(data=plotdata %>% filter(Ref_Date==max(Ref_Date)),aes(label=dollar_format()(round(value))),
+            fontface="bold",vjust=-1,show.legend = F) +
+  geom_point(data=plotdata %>% filter(Ref_Date==max(Ref_Date)),size=3,show.legend = F) +
+	mytheme +
+	scale_colour_manual(name="",labels=c("Inflation-Adjusted (2010$)","Nominal Dollars"),values=c("firebrick","dodgerblue3")) +
+	scale_y_continuous(breaks=pretty_breaks(n=6),labels=dollar,limit=c(950,1225)) +
 	scale_x_yearmon(format = "%Y",n=8) +
 	labs(x="",y="Dollars",title="Average Weekly Earnings in Alberta",
 		subtitle=paste("Source: Own calculations from",sourcetable,"and 18-10-0006"),caption="Graph by @trevortombe")
@@ -764,7 +823,7 @@ ggplot(plotdata,aes(Ref_Date))+
 	scale_x_yearmon(format="%Y")+
   scale_y_continuous(label=dollar)+
   labs(x="",y="Dollars per Week",
-       title="Average Weekly Earnings in Alberta, Actual vs Growth w/ RoC",
+       title="Average Weekly Earnings in Alberta",
        caption="Graph by @trevortombe",
        subtitle="Source: Own calculations from Statistics Canada data table 14-10-0223")
 
@@ -797,7 +856,7 @@ ggplot(plotdata %>% filter(Ref_Date>="Jan 2006"),aes(Ref_Date))+
 	scale_x_yearmon(format="%Y",n=6)+
   scale_y_continuous(label=dollar)+
   labs(x="",y="Dollars per Week",
-       title="Average Weekly Earnings in Alberta, Actual vs Growth w/ RoC",
+       title="Average Weekly Earnings in Alberta",
        caption="Graph by @trevortombe",
        subtitle="Source: Own calculations from Statistics Canada data table 14-10-0223")
 
@@ -829,7 +888,7 @@ ggplot(plotdata %>% filter(Ref_Date>="Jan 2000"),aes(Ref_Date))+
 	scale_x_yearmon(format="%Y")+
   scale_y_continuous(label=dollar)+
   labs(x="",y="Dollars per Week",
-       title="Average Weekly Earnings in Alberta, Actual vs Growth w/ RoC",
+       title="Average Weekly Earnings in Alberta",
        caption="Graph by @trevortombe",
        subtitle="Source: Own calculations from Statistics Canada data table 14-10-0223")
 
@@ -1104,18 +1163,18 @@ plotdata2b<-plotdata2 %>%
 ggplot(plotdata2b,aes(Ref_Date,value,group=type,color=type))+
   geom_line(size=2,show.legend = F)+
   geom_line(data=plotdata2b %>% filter(type=="Data"),
-            size=2,show.legend = F,color="#E41A1C")+ # to fix colors
+            size=2,show.legend = F,color="firebrick")+ # to fix colors
   geom_text(data=plotdata2b %>% filter(Ref_Date==max(Ref_Date)),show.legend = F,
             aes(label=type),fontface="bold",hjust=0,nudge_x=1/6)+
   mytheme+
   scale_y_continuous(label=dollar,limit=c(1040,1250))+
-  scale_x_yearmon(limit=c(2012,max(plotdata$Ref_Date)+1.75),format="%Y")+
-  scale_color_brewer(name="",palette="Set1")+
+  scale_x_yearmon(limit=c(2012,max(plotdata$Ref_Date)+2),format="%Y")+
+  scale_color_manual(name="",values=c("firebrick","dodgerblue3"))+
   labs(y="Dollars per Week",x="",
        caption="Source: Calculations and visualization by @trevortombe, based on various Statistics Canada SEPH data.
 Uses the trend-cycle estimate of the fixed-weight wage index from 14-10-0213-01.",
-       subtitle="Displays average weekly earnings of Albertans in the data, and what earnings would have been if hourly wages grew at the same rate 
-as the rest of Canada, holding fixed hours/overtime/employment composition/etc.",
+       subtitle="Displays average weekly earnings of Albertans in the data, and what earnings would have been if hourly wages grew at the 
+same rate as the rest of Canada, holding fixed hours/overtime/employment composition/etc.",
        title="Average Weekly Earnings in Alberta if Wage Growth Matched Canada's")
 
 plotdata2b %>% filter(Ref_Date==max(Ref_Date))
