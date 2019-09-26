@@ -161,27 +161,43 @@ ggplot(plotdata,aes(Ref_Date,total_earnings))+
 
 ## All Provinces
 ```{r all provinces}
-startdate="Oct 2014"
+startdate="Jan 2015"
 plotdata<-sephemp %>%
-  filter(Ref_Date>=startdate & GEO!="Yukon" & GEO!="Northwest Territories" & GEO!="Canada" & GEO!="Nunavut") %>%
+  filter(Ref_Date>=startdate & GEO!="Yukon" & GEO!="Northwest Territories" &
+           GEO!="Nunavut") %>%
   group_by(GEO) %>%
   mutate(change=Value/Value[1]-1)
-ggplot() +
-	geom_line(size=1,show.legend=FALSE) +
-	geom_line(data=plotdata[(plotdata$GEO!="Alberta" & plotdata$GEO!="Canada"),], aes(x=Ref_Date, y=change,group=GEO), size = 1, color="gray") +
-	geom_line(data=plotdata[plotdata$GEO=="British Columbia",], aes(x=Ref_Date, y=change), size = 2, color="royalblue4") +
-	geom_line(data=plotdata[plotdata$GEO=="Alberta",], aes(x=Ref_Date, y=change), size = 2, color="firebrick") +
-  geom_line(data=plotdata[plotdata$GEO=="Saskatchewan",], aes(x=Ref_Date, y=change), size = 2, color="darkgreen") +
-  geom_hline(aes(yintercept=0), colour="black", size=1) +
+ggplot(plotdata,aes(x=Ref_Date,y=change,group=short,color=short)) +
+	geom_line(size=1,show.legend=FALSE,color="gray")+
+  geom_line(data=plotdata %>% filter(short %in% c("AB","BC","ON","SK","QC","CAN")),size=2,show.legend = F)+
+	geom_hline(aes(yintercept=0), colour="black", size=1) +
   mytheme+
+  geom_text_repel(data=plotdata %>% filter(Ref_Date==max(Ref_Date),short %in% c("AB","ON","SK","BC","QC","CAN")),aes(label=short,x=Ref_Date,y=change),xlim=c(as.numeric(max(plotdata$Ref_Date)),NA),fontface="bold",size=4,show.legend = F)+
   scale_y_continuous(breaks=pretty_breaks(n=8),label=percent) +
-  scale_x_yearmon(breaks=pretty_breaks(n=8),format = "%b\n%Y") +
+  scale_x_yearmon(breaks=pretty_breaks(n=8),format = "%b\n%Y",
+                  limit=c(NA,max(plotdata$Ref_Date)+2/12)) +
   labs(x="",y="Per Cent Change (%)",title=paste("Change in Payroll Jobs in Canada,",startdate,"to",today),
-		subtitle=paste("Source: Own calculations from",sourcetable),caption="Graph by @trevortombe") +
-	annotate(geom="text", x=2016.25, y=.07, label="British Columbia",color="royalblue4",size=3,fontface="bold") +
-	annotate(geom="text", x=2016.75, y=-.07, label="Alberta",color="firebrick",size=3,fontface="bold") +
-  annotate(geom="text", x=2016.5, y=-.025, label="Saskatchewan",color="darkgreen",size=3,fontface="bold") +
-  annotate(geom="text", x=2015.25, y=.04, label="All Others",color="grey60",size=3,fontface="bold")
+		subtitle=paste("Source: Own calculations from",sourcetable),
+		caption="Graph by @trevortombe")+
+  scale_color_ptol()
+
+# Change in Payroll Employment, All Provinces
+plotdata<-sephemp %>%
+  filter(Ref_Date>=startdate & GEO!="Yukon" & GEO!="Northwest Territories" &
+           GEO!="Canada" & GEO!="Nunavut") %>%
+  group_by(short) %>%
+  mutate(change=Value-lag(Value,1)) %>%
+  filter(Ref_Date==max(Ref_Date))
+ggplot(plotdata,aes(short,change))+
+  geom_col(fill="dodgerblue3")+
+  geom_hline(yintercept=0,size=1)+
+  mythemebar+
+  scale_y_continuous(label=comma)+
+  labs(x="",y="Number of Payroll Jobs",
+       title=paste("Change in Payroll Employment,",lastmonth,"to",thismonth),
+       subtitle=paste("Source: Own calculations from",sourcetable),
+       caption="Graph by @trevortombe")
+
 ```
 
 # By Sector
