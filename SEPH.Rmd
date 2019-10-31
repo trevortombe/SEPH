@@ -1291,10 +1291,9 @@ ggplot(plotdata,aes(Ref_Date,share))+geom_line(size=2,color="firebrick")+
   scale_x_continuous(breaks=pretty_breaks(n=6))+
   labs(x="",y="Per Cent",
        title="The Breadth of Alberta's Jobs Recovery (a `Diffusion Index`)",
-       subtitle="Displays the share of disaggregated NAICS sectors with higher payroll employment than 12 months prior.
-When above the black line, more sectors are expanding than shrinking. Below the line, more sectors are shrinking than expanding.
-Source: Own calculations from Statistics Canada data table 14-10-0201. Note: I exclude high-level aggregates, but some double counting remains.",
-       caption="Graph by @trevortombe")
+       subtitle="Displays the share of disaggregated NAICS sectors with higher payroll employment than 12 months prior. When above the
+black line, more sectors are expanding than shrinking. Below the line, more sectors are shrinking than expanding.",
+       caption="Source: Own calculations from Statistics Canada data table 14-10-0201. Note: I exclude high-level aggregates, but some double counting remains. Graph by @trevortombe")
 ```
 
 # Vacancy-to-Unemployment
