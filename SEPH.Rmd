@@ -115,7 +115,7 @@ ggplot(plotdata,aes(Ref_Date,change/1000,group=Group,color=Group))+
 ```
 
 ```{r level in Alberta}
-startdate<-"Jan 2012"
+startdate<-"Jan 2010"
 plotdata<-sephemp %>%
   filter(Ref_Date>=startdate & GEO=="Alberta")
 ggplot(plotdata,aes(Ref_Date,Value/1000))+
@@ -273,7 +273,7 @@ ggplot(filter(plotdata,Estimate=="Employment for all employees" & Ref_Date==max(
        subtitle="Source: Own calculations from Statistics Canada data table 14-10-0223.",caption="Graph by @trevortombe.")
 
 # Shift in Alberta's employment composition
-start="Oct 2014"
+start="Feb 2020"
 seph<-seph %>% data.table()
 plotdata<-seph[GEO=="Alberta" & Estimate=="Employment for all employees" & Ref_Date>=start & NAICS!="Industrial aggregate including unclassified businesses" &
                  NAICS!="Industrial aggregate excluding unclassified businesses" & NAICS!="Durable goods" & NAICS!="Trade" &
@@ -309,11 +309,11 @@ ggplot(test2, aes(x=start, xend=end, y=NAICS, group=NAICS)) +
                 size_x=2,
                 colour_xend="firebrick",
                 size_xend=4)+
-  geom_text(data=test2 %>% filter(NAICS=="Mining/Oil/Gas"),
-            aes(x=end, y="Mining/Oil/Gas", label=paste(today)),
+  geom_text(data=test2 %>% filter(NAICS=="Hotel/Restaurants"),
+            aes(x=end, y="Hotel/Restaurants", label=paste(today)),
             color="firebrick", hjust=1, size=3, nudge_y=0.5, nudge_x=-0.002)+
-  geom_text(aes(x=0.068, y="Mining/Oil/Gas", label="Oct 2014"),
-            color="royalblue", hjust=0, size=3, nudge_y=0.5)+
+  geom_text(aes(x=0.085, y="Hotel/Restaurants", label="Feb 2020"),
+            color="royalblue", hjust=0, size=3, nudge_y=-0.5)+
   geom_vline(xintercept = 0,size=1)+
   mytheme+
   scale_x_continuous(expand=c(0,0),limits=c(0,0.13),label=percent,breaks=pretty_breaks(n=8)) + 
@@ -1292,6 +1292,47 @@ ggplot(plotdata,aes(Ref_Date,share))+geom_line(size=2,color="firebrick")+
        subtitle="Displays the share of disaggregated NAICS sectors with higher payroll employment than 12 months prior. When above the
 black line, more sectors are expanding than shrinking. Below the line, more sectors are shrinking than expanding.",
        caption="Source: Own calculations from Statistics Canada data table 14-10-0201. Note: I exclude high-level aggregates, but some double counting remains. Graph by @trevortombe")
+
+plotdata<-jobdetailed %>%
+  filter(!(NAICS %in% c("Industrial aggregate including unclassified businesses",
+                                                                        "Industrial aggregate excluding unclassified businesses",
+                                                                        "Goods producing industries","Manufacturing",
+                                                                        "Non-durable goods","Durable goods",
+                                                                        "Service producing industries","Trade")),
+         Type.of.employee=="All employees",GEO=="Canada") %>%
+  group_by(GEO,NAICS) %>%
+  arrange(GEO,NAICS) %>%
+  mutate(grow=Value>lag(Value,12)) %>%
+  filter(!is.na(grow)) %>%
+  group_by(GEO,Ref_Date) %>%
+  summarise(share=mean(grow)) %>%
+  filter(Ref_Date>="Jan 2005")
+ggplot(plotdata,aes(Ref_Date,share))+geom_line(size=2,color="firebrick")+
+  geom_hline(yintercept=0.5,size=1)+
+  mytheme+
+  scale_y_continuous(label=percent,limit=c(0,1))+
+  scale_x_continuous(breaks=pretty_breaks(n=6))+
+  labs(x="",y="Per Cent",
+       title="The Breadth of Canada's COVID Job Losses (a `Diffusion Index`)",
+       subtitle="Displays the share of disaggregated NAICS sectors with higher payroll employment than 12 months prior. When above the
+black line, more sectors are expanding than shrinking. Below the line, more sectors are shrinking than expanding.",
+       caption="Source: Own calculations from Statistics Canada data table 14-10-0201. Note: I exclude high-level aggregates, but some double counting remains. Graph by @trevortombe")
+
+jobdetailed %>%
+  filter(!(NAICS %in% c("Industrial aggregate including unclassified businesses",
+                                                                        "Industrial aggregate excluding unclassified businesses",
+                                                                        "Goods producing industries","Manufacturing",
+                                                                        "Non-durable goods","Durable goods",
+                                                                        "Service producing industries","Trade")),
+         Type.of.employee=="All employees",GEO=="Canada") %>%
+  group_by(GEO,NAICS) %>%
+  filter(Ref_Date==max(Ref_Date) | Ref_Date=="Feb 2020") %>%
+  arrange(GEO,NAICS,Ref_Date) %>%
+  mutate(MoM=1*(Value<Value[1])) %>%
+  group_by(GEO) %>%
+  filter(!is.na(MoM),Ref_Date==max(Ref_Date)) %>%
+  summarise(share=mean(MoM))
+
 ```
 
 # Vacancy-to-Unemployment

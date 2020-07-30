@@ -19,7 +19,6 @@ data.table
 ggalt
 gridExtra
 ggridges
-magrittr
 ggpubr
 testit
 ggseas
