@@ -364,6 +364,40 @@ ggplot(plotdata %>% filter(Ref_Date>="Oct 2014"),aes(Ref_Date,change,group=above
 Source: Own calculations from Statistics Canada data tables 14-10-0205 and 14-10-0223",
        caption="Graph by @trevortombe")
 
+# Change in employment by wage high vs lower wages -- COVID
+plotdata<-seph %>%
+  filter(GEO=="Alberta",!(NAICS %in% c("Industrial aggregate including unclassified businesses",
+                                       "Industrial aggregate excluding unclassified businesses","Durable goods",
+                                       "Non-durable goods","Trade",
+                                       "Goods producing industries","Service producing industries"))) %>%
+  mutate(variable=ifelse(grepl("Employment",Estimate),"emp","earn")) %>%
+  select(Ref_Date,NAICS,variable,Value) %>%
+  spread(variable,Value) %>%
+  left_join(OTpay %>% filter(GEO=="Canada",
+                             Overtime=="Excluding overtime") %>%
+              select(Ref_Date,NAICS,wage=Value),by=c("NAICS","Ref_Date")) %>%
+  group_by(NAICS) %>%
+  mutate(startemp=weighted.mean(emp,Ref_Date=="Feb 2020"),
+         startwage=weighted.mean(wage,Ref_Date=="Feb 2020"),
+         change=emp-startemp,
+         above30=(startwage>=30)*1,
+         above30=ifelse(is.na(above30),0,above30)) %>%
+  group_by(Ref_Date,above30) %>%
+  summarise(change=sum(change))
+ggplot(plotdata %>% filter(Ref_Date>="Feb 2020"),aes(Ref_Date,change,group=above30,color=as.character(above30)))+
+  geom_hline(yintercept=0,size=1)+
+  geom_line(size=2)+
+  mytheme+
+  scale_color_manual(name="",values=c("firebrick","dodgerblue3"),
+                     labels=c("Average Wages Below $30","Average Wage Above $30"))+
+  scale_y_continuous("Change in Payroll Employment",label=comma)+
+  scale_x_yearmon("",breaks=seq(2020+1/12,2020+7/12,1/12),
+                  labels=c("Feb\n2020","Mar","Apr","May","Jun","Jul","Aug"))+
+  labs(title="Employment Changes in Higher vs Lower Paying Sectors in Canada",
+       subtitle="Displays the change in payroll employment in Canada since Feb 2020 in sectors paying above and below $30 per hour.
+Source: Own calculations from Statistics Canada data tables 14-10-0205 and 14-10-0223",
+       caption="Graph by @trevortombe")
+
 ```
 
 
