@@ -53,7 +53,7 @@ jobdetailed<-getTABLE("14100201")
 # Useful dates
 thismonth=as.character(today)
 lastmonth=as.character(today-1/12)
-lastyear=as.character(today-1-1/12)
+lastyear=as.character(today-1)
 
 ```
 
