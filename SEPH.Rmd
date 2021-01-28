@@ -159,21 +159,24 @@ ggplot(plotdata,aes(Ref_Date,total_earnings))+
 
 ## All Provinces
 ```{r all provinces}
-startdate="Jan 2015"
+startdate="Feb 2020"
 plotdata<-sephemp %>%
   filter(Ref_Date>=startdate & GEO!="Yukon" & GEO!="Northwest Territories" &
            GEO!="Nunavut") %>%
   group_by(GEO) %>%
   mutate(change=Value/Value[1]-1)
-ggplot(plotdata,aes(x=Ref_Date,y=change,group=short,color=short)) +
+ggplot(plotdata,aes(x=as.Date(Ref_Date),y=change,group=short,color=short)) +
 	geom_line(size=1,show.legend=FALSE,color="gray")+
   geom_line(data=plotdata %>% filter(short %in% c("AB","BC","ON","SK","QC","CAN")),size=2,show.legend = F)+
 	geom_hline(aes(yintercept=0), colour="black", size=1) +
   mytheme+
-  geom_text_repel(data=plotdata %>% filter(Ref_Date==max(Ref_Date),short %in% c("AB","ON","SK","BC","QC","CAN")),aes(label=short,x=Ref_Date,y=change),xlim=c(as.numeric(max(plotdata$Ref_Date)),NA),fontface="bold",size=4,show.legend = F)+
+  geom_text_repel(data=plotdata %>% filter(Ref_Date==max(Ref_Date),short %in% c("AB","ON","SK","BC","QC","CAN")),
+                  aes(label=short),
+                  xlim=c(as.Date(max(plotdata$Ref_Date)),as.Date(max(plotdata$Ref_Date)+0.25)),
+                  fontface="bold",size=4,show.legend = F)+
   scale_y_continuous(breaks=pretty_breaks(n=8),label=percent) +
-  scale_x_yearmon(breaks=pretty_breaks(n=8),format = "%b\n%Y",
-                  limit=c(NA,max(plotdata$Ref_Date)+2/12)) +
+  scale_x_date(date_breaks="1 month",date_labels = "%b",
+                  limits=as.Date(c(min(plotdata$Ref_Date),max(plotdata$Ref_Date)+2/12))) +
   labs(x="",y="Per Cent Change (%)",title=paste("Change in Payroll Jobs in Canada,",startdate,"to",today),
 		subtitle=paste("Source: Own calculations from",sourcetable),
 		caption="Graph by @trevortombe")+
