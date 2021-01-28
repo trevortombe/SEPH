@@ -167,10 +167,10 @@ plotdata<-sephemp %>%
   mutate(change=Value/Value[1]-1)
 ggplot(plotdata,aes(x=as.Date(Ref_Date),y=change,group=short,color=short)) +
 	geom_line(size=1,show.legend=FALSE,color="gray")+
-  geom_line(data=plotdata %>% filter(short %in% c("AB","BC","ON","SK","QC","CAN")),size=2,show.legend = F)+
+  geom_line(data=plotdata,size=2,show.legend = F)+
 	geom_hline(aes(yintercept=0), colour="black", size=1) +
   mytheme+
-  geom_text_repel(data=plotdata %>% filter(Ref_Date==max(Ref_Date),short %in% c("AB","ON","SK","BC","QC","CAN")),
+  geom_text_repel(data=plotdata %>% filter(Ref_Date==max(Ref_Date)),
                   aes(label=short),
                   xlim=c(as.Date(max(plotdata$Ref_Date)),as.Date(max(plotdata$Ref_Date)+0.25)),
                   fontface="bold",size=4,show.legend = F)+
@@ -617,22 +617,23 @@ fixedweight %>%
 fixedweight %>%
   filter(GEO %in% c("Canada","Alberta"),NAICS=="Industrial aggregate excluding unclassified businesses",
          Ref_Date>="Jan 2010") %>%
-  getseas("GEO") %>%
   group_by(GEO) %>%
-  mutate(Value=100*Value/weighted.mean(Value,(year(Ref_Date)==2014))) %>%
-  select(-TC) %>%
   gettrend("Value") %>%
-  filter(Ref_Date>="Jan 2014") %>%
+  mutate(Value=100*Value/weighted.mean(Value,Ref_Date=="Oct 2014")) %>%
+  mutate(TC=100*TC/weighted.mean(TC,Ref_Date=="Oct 2014")) %>%
+  filter(Ref_Date>="Oct 2014") %>%
+  mutate(month=1:n(),
+         TC=TC/((1.02^(1/12))^month),
+         Value=Value/((1.02^(1/12))^month)) %>%
   ggplot(aes(Ref_Date,TC,color=GEO))+
   geom_line(size=2)+
   geom_line(aes(y=Value),linetype="dashed")+
   mytheme+
   scale_x_yearmon(format="%Y")+
   scale_color_brewer(name="",palette="Set1")+
-  labs(y="Index (2014 = 100)",x="",title="Fixed weighted index of average hourly earnings of all employees",
+  labs(y="Index (Oct 2014 = 100)",x="",title="Fixed weighted index of average hourly earnings of all employees",
        caption="Graph by @trevortombe",
-       subtitle="Source: Own calculations from Statistics Canada data table 14-10-0213")
-
+       subtitle="Source: Own calculations from Statistics Canada data table 14-10-0213. Inflation adjusted.")
 
 
 ```
