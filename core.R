@@ -1,26 +1,18 @@
 rm(list=ls(all=TRUE)) # wipes previous workspace
 
-# Packages used by this code
-# install.packages("testit")
-library(zoo)
-library(ggplot2)
-library(scales)
-library(RColorBrewer)
-library(ggthemes)
-library(tidyverse)
-library(ggrepel)
-library(jsonlite)
-library(data.table)
-library(ggalt)
-library(gridExtra)
-library(ggridges)
-library(ggpubr)
-library(testit)
-library(ggseas)
-library(readxl)
-
-#library(plyr)
-#library(colortools)
+# Common Packages
+packages<-c("curl","scales","zoo",
+            "RColorBrewer","tidyverse","ggalt","gridExtra","ggridges",
+            "ggpubr","testit","ggseas","readxl","grid",
+            "ggplot2","ggthemes","jsonlite",
+            "data.table","ggrepel","rmarkdown")
+check.packages <- function(pkg){
+  new.pkg <- pkg[!(pkg %in% installed.packages()[, "Package"])]
+  if (length(new.pkg)) 
+    install.packages(new.pkg)
+  sapply(pkg, require, character.only = TRUE)
+}
+check.packages(packages)
 
 # For the new StatCan Data Tables
 getTABLE<-function(x) {
@@ -87,67 +79,6 @@ loadTABLE<-function(x) {
                           substr(NAPCS,1,regexpr(" \\[",NAPCS)-1),NAPCS))
   }
   return(data)
-}
-
-# Project dataset "x" from date "y" onwards for z years
-ProjectOut<-function(x,y,z) {
-  startextra=y
-  plotstart=as.numeric(min(x$Ref_Date))
-  plotend=as.numeric(as.yearmon(y)+z)
-  p<-ggplot(x,aes(Ref_Date,Value))+
-    stat_smooth(data=subset(x,x$Ref_Date<=startextra),se=FALSE,method="lm",fullrange=TRUE,size=2)+
-    scale_x_yearmon(limits=c(plotstart,plotend))
-  extrapolate<-ggplot_build(p)$data[[1]]
-  extrapolate<-extrapolate[extrapolate$x>=as.numeric(as.yearmon(startextra)),]
-  extrapolate$x<-as.yearmon(extrapolate$x)
-  return(extrapolate)
-}
-
-# Function to rename provinces
-renameS<-function(x) {
-  x$GEO[x$GEO=="Canada"]<-"CAN"
-  x$GEO[x$GEO=="British Columbia"]<-"BC"
-  x$GEO[x$GEO=="Alberta"]<-"AB"
-  x$GEO[x$GEO=="Saskatchewan"]<-"SK"
-  x$GEO[x$GEO=="Manitoba"]<-"MB"
-  x$GEO[x$GEO=="Ontario"]<-"ON"
-  x$GEO[x$GEO=="Quebec"]<-"QC"
-  x$GEO[x$GEO=="New Brunswick"]<-"NB"
-  x$GEO[x$GEO=="Nova Scotia"]<-"NS"
-  x$GEO[x$GEO=="Prince Edward Island"]<-"PE"
-  x$GEO[x$GEO=="Newfoundland and Labrador"]<-"NL"
-  temp<-x
-}
-renameL<-function(x) {
-  x[GEOGRAPHY=="Canada"]$GEOGRAPHY<-"CAN"
-  x[GEOGRAPHY=="British Columbia"]$GEOGRAPHY<-"BC"
-  x[GEOGRAPHY=="Alberta"]$GEOGRAPHY<-"AB"
-  x[GEOGRAPHY=="Saskatchewan"]$GEOGRAPHY<-"SK"
-  x[GEOGRAPHY=="Manitoba"]$GEOGRAPHY<-"MB"
-  x[GEOGRAPHY=="Ontario"]$GEOGRAPHY<-"ON"
-  x[GEOGRAPHY=="Quebec"]$GEOGRAPHY<-"QC"
-  x[GEOGRAPHY=="New Brunswick"]$GEOGRAPHY<-"NB"
-  x[GEOGRAPHY=="Nova Scotia"]$GEOGRAPHY<-"NS"
-  x[GEOGRAPHY=="Prince Edward Island"]$GEOGRAPHY<-"PE"
-  x[GEOGRAPHY=="Newfoundland and Labrador"]$GEOGRAPHY<-"NL"
-  temp<-x
-}
-renameTerr<-function(x) {
-  x[x$GEO=="Canada"]$GEO<-"CAN"
-  x[x$GEO=="British Columbia"]$GEO<-"BC"
-  x[x$GEO=="Alberta"]$GEO<-"AB"
-  x[x$GEO=="Saskatchewan"]$GEO<-"SK"
-  x[x$GEO=="Manitoba"]$GEO<-"MB"
-  x[x$GEO=="Ontario"]$GEO<-"ON"
-  x[x$GEO=="Quebec"]$GEO<-"QC"
-  x[x$GEO=="New Brunswick"]$GEO<-"NB"
-  x[x$GEO=="Nova Scotia"]$GEO<-"NS"
-  x[x$GEO=="Prince Edward Island"]$GEO<-"PE"
-  x[x$GEO=="Newfoundland and Labrador"]$GEO<-"NL"
-  x[x$GEO=="Yukon"]$GEO<-"YT"
-  x[x$GEO=="Northwest Territories"]$GEO<-"NT"
-  x[x$GEO=="Nunavut"]$GEO<-"NU"
-  temp<-x
 }
 
 # Default theme
@@ -328,22 +259,4 @@ getseas<-function(df,g){
     ungroup()
   return(temp)
 }
-
-
-
-########
-# GIFs #
-########
-#install.packages("magick")
-#install.packages("installr")
-#require(installr)
-#install.packages("animation")
-#install.ImageMagick()
-#install.packages("gganimate")
-
-#library(animation)
-#library(gganimate)
-
-#magickPath <- shortPathName("D:\\Program Files\\ImageMagick-7.0.7-Q16\\magick.exe")
-#ani.options(convert=magickPath)
 
