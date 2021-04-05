@@ -1,0 +1,24 @@
+# This periodically updates the StatCan SEPH data
+name: UpdateSEPH
+on:
+  #schedule:
+  #  - cron: '45 14 1-7 * *'
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: r-lib/actions/setup-r@master
+      - uses: r-lib/actions/setup-pandoc@v1
+      - name: Install rmarkdown
+        run: Rscript -e 'install.packages("rmarkdown")'
+      - name: Render SEPH
+        run: Rscript -e 'rmarkdown::render("SEPH.Rmd")'
+      - name: Commit results
+        run: |
+          git config --global user.email "trevor.tombe@gmail.com"
+          git config --global user.name "Trevor Tombe"
+          git add 'SEPH_files/*.*' 'SEPH.html'
+          git commit -m "Update SEPH" || echo "No changes to commit"
+          git push origin || echo "No changes to commit"
