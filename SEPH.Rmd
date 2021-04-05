@@ -76,15 +76,16 @@ plotdata<-sephemp %>%
   group_by(GEO) %>%
   mutate(change=Value-max(Value*(Ref_Date==startdate)))
 ggplot(plotdata,aes(Ref_Date,change/1000))+
-  geom_line(size=2) +
-  geom_point(data=plotdata %>% filter(Ref_Date==max(Ref_Date)),size=4)+
+  geom_line(size=2,color="firebrick") +
+  geom_point(data=plotdata %>% filter(Ref_Date==max(Ref_Date)),size=2.5,
+             color="firebrick",shape=21,stroke=2.5,fill='white')+
 	geom_hline(aes(yintercept=0), colour="black", size=1) +
   geom_text(data=plotdata[plotdata$Ref_Date==max(plotdata$Ref_Date),],
             aes(x=Ref_Date,y=change/1000,label=paste(round(change/1000),"k",sep="")),
-            hjust=0,vjust=-0.5,fontface="bold",size=5,color="firebrick") +
+            hjust=0,vjust=-0.5,fontface="bold",size=4,color="firebrick",nudge_x=1/12) +
   mytheme+
   scale_y_continuous(breaks=pretty_breaks(n=8)) +
-  scale_x_yearmon(limit=c(2014.75,max(plotdata$Ref_Date)+1/12),breaks=pretty_breaks(n=8),format = "%b\n%Y") +
+  scale_x_yearmon(limit=c(2014.75,max(plotdata$Ref_Date)+3/12),breaks=pretty_breaks(n=8),format = "%Y") +
 	labs(x="",y="Thousands of Jobs",title=paste("Change in",plotdata$GEO[1],"Payroll Jobs Since",startdate),
 		subtitle="Note: The 2015-16 recession started in October 2014. Source: Statistics Canada table 14-10-0223",caption="Graph by @trevortombe")
 
@@ -93,7 +94,8 @@ lfsdata<-fromJSON("http://economicdashboard.alberta.ca/Download/DownloadFile?ext
 startdate="Dec 2014"
 plotdata <- lfsdata %>%
   mutate(Ref_Date=as.yearmon(as.Date(When))) %>%
-  filter(Ref_Date>=startdate,Characteristic=="Employment") %>%
+  filter(Ref_Date>=startdate,Characteristic=="Employment",
+         NAICS=="All Industries",Sex=="Both sexes") %>%
   select(Ref_Date,emp=Alberta) %>%
   mutate(change=(emp-emp[1]),
          Group="Labour Force Survey ('Employment')") %>%
@@ -108,7 +110,7 @@ ggplot(plotdata,aes(Ref_Date,change/1000,group=Group,color=Group))+
 	mytheme+
 	scale_colour_brewer(name="",palette="Set1") +
 	scale_y_continuous(breaks=pretty_breaks(n=8)) +
-  scale_x_yearmon(breaks=pretty_breaks(n=8),format = "%b\n%Y") +
+  scale_x_yearmon(breaks=pretty_breaks(n=8),format = "%Y") +
   labs(x="",y="Thousands of Persons",title=paste("Change in Alberta Employment Since",startdate),
 		subtitle=paste("Source: Own calculations from",sourcetable,"and 14-10-0287."),caption="Graph by @trevortombe")
 
@@ -175,7 +177,7 @@ ggplot(plotdata,aes(x=as.Date(Ref_Date),y=change,group=short,color=short)) +
                   xlim=c(as.Date(max(plotdata$Ref_Date)),as.Date(max(plotdata$Ref_Date)+0.25)),
                   fontface="bold",size=4,show.legend = F)+
   scale_y_continuous(breaks=pretty_breaks(n=8),label=percent) +
-  scale_x_date(date_breaks="1 month",date_labels = "%b",
+  scale_x_date(date_breaks="2 months",date_labels = "%b\n%Y",
                   limits=as.Date(c(min(plotdata$Ref_Date),max(plotdata$Ref_Date)+2/12))) +
   labs(x="",y="Per Cent Change (%)",title=paste("Change in Payroll Jobs in Canada,",startdate,"to",today),
 		subtitle=paste("Source: Own calculations from",sourcetable),
@@ -467,7 +469,7 @@ ggplot(plotdata,aes(Ref_Date,Value,group=GEO))+
             aes(Ref_Date,Value,group=GEO,color=GEO), size = 2) +
 	mytheme +
 	scale_colour_brewer(name="",palette="Set1") +
-	scale_y_continuous(limit=c(700,1200),breaks=pretty_breaks(n=10),labels=dollar) +
+	scale_y_continuous(limit=c(700,NA),breaks=pretty_breaks(n=10),labels=dollar) +
 	scale_x_yearmon(format = "%Y",n=8) +
 	annotate(geom="text", x=2016, y=770,hjust=0, label="All Other Provinces",color="grey70",size=4,fontface="bold") +
 	labs(x="",y="Dollars",title=paste("Average Weekly Earnings,",startdate,"to",today),
@@ -480,8 +482,8 @@ ggplot(plotdata %>% filter(GEO=="Alberta"),aes(Ref_Date,Value))+
   geom_line(size=2,color="firebrick") +
   geom_point(data=plotdata %>% filter(GEO=="Alberta",Ref_Date==max(Ref_Date)),size=3,color="firebrick")+
   mytheme +
-  scale_y_continuous(labels=dollar,expand=c(0,0),limit=c(1000,1200)) +
-  scale_x_yearmon(format = "%Y",breaks=seq(2011,2018)) +
+  scale_y_continuous(labels=dollar,expand=c(0,0),limit=c(1000,NA)) +
+  scale_x_yearmon(format = "%Y",breaks=pretty_breaks(6)) +
   labs(x="",y="Dollars",title=paste("Average Weekly Earnings in Alberta,",startdate,"to",today),
        subtitle=paste("Source: Own calculations from",sourcetable),caption="Graph by @trevortombe")
 
@@ -502,7 +504,7 @@ ggplot(plotdata,aes(Ref_Date,change,group=GEO,color=GEO))+
   theme(legend.position = c(0.9,0.25))+
 	scale_colour_brewer(name="",labels=c("Alberta","Canada"),palette="Set1") +
 	scale_y_continuous(breaks=pretty_breaks(n=10),labels=percent) +
-	scale_x_yearmon(format = "%b\n%Y",n=8) +
+	scale_x_yearmon(format = "%Y",n=6) +
 	labs(x="",y="Year-over-Year % Change",title="Change in Average Weekly Earnings (YoY %)",
 		subtitle=paste("Source: Own calculations from",sourcetable),caption="Graph by @trevortombe")
 ```
@@ -548,7 +550,7 @@ ggplot(plotdata,aes(Ref_Date,value,group=type,color=type))+
   geom_point(data=plotdata %>% filter(Ref_Date==max(Ref_Date)),size=3,show.legend = F) +
 	mytheme +
 	scale_colour_manual(name="",labels=c("Inflation-Adjusted (2010$)","Nominal Dollars"),values=c("firebrick","dodgerblue3")) +
-	scale_y_continuous(breaks=pretty_breaks(n=6),labels=dollar,limit=c(950,1225)) +
+	scale_y_continuous(breaks=pretty_breaks(n=6),labels=dollar,limit=c(950,NA)) +
 	scale_x_yearmon(format = "%Y",n=8) +
 	labs(x="",y="Dollars",title="Average Weekly Earnings in Alberta",
 		subtitle=paste("Source: Own calculations from",sourcetable,"and 18-10-0006"),caption="Graph by @trevortombe")
@@ -718,7 +720,7 @@ ggplot(plotdata,aes(Ref_Date,change,group=Estimate,color=Estimate))+
 	geom_hline(aes(yintercept=0), colour="black", size=1) +
 	mytheme +
   scale_colour_brewer(name="",palette="Set1",label=c("Hourly Wages","Hours per Week")) +
-  scale_y_continuous(breaks=pretty_breaks(n=8),labels=percent,limit=c(-0.08,0.06)) +
+  scale_y_continuous(breaks=pretty_breaks(n=8),labels=percent) +
 	scale_x_yearmon(format = "%Y") +
 	labs(x="",y="Per Cent Change",title=paste("Change in",province,"Hours/Wages for Hourly Workers since",startdate),
 	     subtitle=paste("Source: Own calculations from ",sourcetable,sep=""),caption="Graph by @trevortombe")
@@ -799,15 +801,6 @@ ggplot(plotdata,aes(Ref_Date,TC,group=GEO))+
   labs(x="",y="Hours per Week",title="Average weekly hours in Alberta for Hourly Employees",
        subtitle=paste("Source: Own calculations from ",sourcetable,"-- including overtime; for hourly employees only."),caption="Graph by @trevortombe")
 
-plotdata<-wagedata %>%
-  filter(Ref_Date==max(Ref_Date) & 
-           Estimate %in% c("Standard work week excluding overtime for salaried employees (exclude overtime)",
-                           "Average weekly hours including overtime for hourly employees")) %>%
-  mutate(Estimate=ifelse(Estimate=="Average weekly hours including overtime for hourly employees","Hourly Employees","Salaried Employees"))
-ggplot(plotdata,aes(short,Value,group=Estimate,fill=Estimate))+
-  geom_col(position="dodge")+
-  labs(title="Average hours worked, by province")
-
 # Total hours
 plotdata<-wagedata %>%
   filter(GEO==province & Estimate=="Employment for hourly paid employees") %>%
@@ -831,8 +824,8 @@ plotdata<-wagedata %>%
   mutate(total_hours=4*(emp_hrly*hours_hrly+emp_sal*hours_sal)/1000000,
          change=total_hours/total_hours[1]-1)
 ggplot(plotdata,aes(Ref_Date,total_hours))+
-  annotate("rect",xmin=as.numeric(as.yearmon("Oct 2014")), xmax=as.numeric(as.yearmon("Oct 2016")), 
-           ymin=-Inf, ymax=+Inf, alpha=0.2, fill="dodgerblue")+
+  annotate("rect",xmin=as.numeric(as.yearmon("Oct 2014")), xmax=as.numeric(as.yearmon("Oct 2016")),ymin=-Inf, ymax=+Inf, alpha=0.2, fill="dodgerblue")+
+  annotate("rect",xmin=as.numeric(as.yearmon("Feb 2020")), xmax=as.numeric(as.yearmon("May 2020")),ymin=-Inf, ymax=+Inf, alpha=0.2, fill="dodgerblue")+
   annotate("text",x=2017, y=Inf, vjust=1.25, hjust=0,
            label="Recession",color="dodgerblue",size=3,fontface="italic",alpha=0.6)+
   geom_line(size=2,color="firebrick")+
@@ -1219,7 +1212,7 @@ ggplot(plotdata2b,aes(Ref_Date,value,group=type,color=type))+
   geom_text(data=plotdata2b %>% filter(Ref_Date==max(Ref_Date)),show.legend = F,
             aes(label=type),fontface="bold",hjust=0,nudge_x=1/6)+
   mytheme+
-  scale_y_continuous(label=dollar,limit=c(1040,1250))+
+  scale_y_continuous(label=dollar)+
   scale_x_yearmon(limit=c(2012,max(plotdata$Ref_Date)+2),format="%Y")+
   scale_color_manual(name="",values=c("firebrick","dodgerblue3"))+
   labs(y="Dollars per Week",x="",
@@ -1372,48 +1365,3 @@ jobdetailed %>%
   summarise(share=mean(MoM))
 
 ```
-
-# Vacancy-to-Unemployment
-
-```{r vacancy_data}
-vanunemp<-getTABLE("14100226")
-```
-
-```{r vacancy_plots}
-plotdata<-vanunemp %>%
-  filter(Job.vacancy.statistics=="Unemployment-to-job vacancies ratio",
-         grepl("All unemployed",NAICS),
-         GEO %in% c("Canada","Alberta","Saskatchewan"))
-ggplot(plotdata,aes(Ref_Date,Value,group=GEO,color=GEO)) +
-  annotate("rect",xmin=as.numeric(as.yearmon("Oct 2014")), xmax=as.numeric(as.yearmon("Oct 2016")), 
-           ymin=0, ymax=+Inf, alpha=0.2, fill="dodgerblue")+
-  annotate("text",x=2015.71, y=Inf, vjust=1, hjust=0.5, 
-           label="AB Recession",color="black",size=3,fontface="italic")+
-  geom_line(size=2) +
-  geom_point(data=plotdata %>% filter(Ref_Date==max(Ref_Date)),size=4,show.legend = F)+
-  geom_hline(aes(yintercept=0), colour="black", size=1) +
-  geom_text(data=plotdata[plotdata$Ref_Date==max(vanunemp$Ref_Date),],
-            aes(x=Ref_Date,y=Value,label=Value,color=GEO,group=GEO),nudge_x=0.25,vjust=-0.25,
-            fontface="bold",size=4,show.legend=F) +
-  mytheme +
-  scale_colour_brewer(name="",palette="Set1") +
-  scale_y_continuous(breaks=pretty_breaks(n=10),expand=c(0,0),limit=c(0,9)) +
-  scale_x_yearmon(limit=c(NA,today+1/2),format = "%Y") +
-  labs(x="",y="Workers per Vacancy",title="Unemployed Workers per Job Vacancy",
-       subtitle="Source: Statistics Canada data table 14-10-0226",caption="Graph by @trevortombe")
-plotdata<-vanunemp %>%
-  filter(Job.vacancy.statistics=="Unemployment-to-job vacancies ratio",
-         grepl("All unemployed",NAICS)) %>%
-  filter(Ref_Date==max(Ref_Date) | Ref_Date==(max(Ref_Date)-1)) %>%
-  filter(!(short %in% c("CAN","NU","YT","NT")) & !is.na(short))
-ggplot(plotdata, aes(x=short,y=Value,group=as.character(Ref_Date),fill=as.character(Ref_Date))) +
-  geom_col(position="dodge") +
-  geom_hline(aes(yintercept=0), colour="black", size=1) +
-  mythemebar+
-  theme(legend.position = c(0.1,0.8))+
-  scale_fill_brewer(name="",palette="Set1") +
-  scale_y_continuous(breaks=pretty_breaks(n=10),expand=c(0,0)) +
-  labs(x="",y="Unemployed per Vacancy",title="Unemployed Workers per Job Vacancy",
-       subtitle="Source: Statistics Canada data table 14-10-0226",caption="Graph by @trevortombe")
-```
-
