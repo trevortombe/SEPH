@@ -1,11 +1,11 @@
 base
 knitr
-zoo
-ggplot2
+curl
 scales
+zoo
 RColorBrewer
-ggthemes
 tidyverse
+ggplot2
 tibble
 tidyr
 readr
@@ -13,9 +13,6 @@ purrr
 dplyr
 stringr
 forcats
-ggrepel
-jsonlite
-data.table
 ggalt
 gridExtra
 ggridges
@@ -23,3 +20,8 @@ ggpubr
 testit
 ggseas
 readxl
+ggthemes
+jsonlite
+data.table
+ggrepel
+rmarkdown
