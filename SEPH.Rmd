@@ -123,8 +123,8 @@ plotdata<-sephemp %>%
 ggplot(plotdata,aes(Ref_Date,Value/1000))+
   annotate("rect",xmin=as.numeric(as.yearmon("Oct 2014")), xmax=as.numeric(as.yearmon("Oct 2016")), 
            ymin=-Inf, ymax=+Inf, alpha=0.2, fill="dodgerblue")+
-  annotate("text",x=2015.71, y=Inf, vjust=1,
-           label="Recession",color="black",size=3,fontface="italic")+
+  annotate("rect",xmin=as.numeric(as.yearmon("Feb 2020")), xmax=max(plotdata$Ref_Date), 
+           ymin=-Inf, ymax=+Inf, alpha=0.2, fill="dodgerblue")+
   geom_line(size=2,color="firebrick") +
   geom_point(data=plotdata %>% filter(Ref_Date==max(Ref_Date)),size=3,color="firebrick")+
   mytheme+
@@ -243,6 +243,41 @@ ggplot(filter(plotdata,Estimate=="Employment for all employees" & Ref_Date==max(
        subtitle="Source: Statistics Canada data table 14-10-0223.",caption="Graph by @trevortombe.")
 
 plotdata<-as_tibble(seph) %>%
+  filter(GEO=="Alberta" & Ref_Date>="Feb 2020" & 
+           !(NAICS %in% c("Industrial aggregate including unclassified businesses",
+                          "Industrial aggregate excluding unclassified businesses",
+                          "Goods producing industries","Service producing industries",
+                          "Durable goods","Non-durable goods","Trade"))) %>%
+  select(Ref_Date,Estimate,NAICS,Value) %>%
+  mutate(
+    NAICS=replace(NAICS,NAICS=="Administrative and support, waste management and remediation services","Admin Support & Waste"),
+    NAICS=replace(NAICS,NAICS=="Other services (except public administration)","Other Service"),
+    NAICS=replace(NAICS,NAICS=="Mining, quarrying, and oil and gas extraction","Mining/Oil/Gas"),
+    NAICS=replace(NAICS,NAICS=="Forestry, logging and support","Forestry"),
+    NAICS=replace(NAICS,NAICS=="Accommodation and food services","Hotel/Restaurants"),
+    NAICS=replace(NAICS,NAICS=="Arts, entertainment and recreation","Arts, enter., rec."),
+    NAICS=replace(NAICS,NAICS=="Professional, scientific and technical services","Professional/Scientific"),
+    NAICS=replace(NAICS,NAICS=="Real estate and rental and leasing","Real Estate"),
+    NAICS=replace(NAICS,NAICS=="Transportation and warehousing","Transport/Storage"),
+    NAICS=replace(NAICS,NAICS=="Information and cultural industries","Information/Culture"),
+    NAICS=replace(NAICS,NAICS=="Health care and social assistance","Health/Social"),
+    NAICS=replace(NAICS,NAICS=="Management of companies and enterprises","Mgmt of Companies")
+    ) %>%
+  arrange(Estimate,NAICS,Ref_Date) %>%
+  group_by(Estimate,NAICS) %>%
+  mutate(change=Value-Value[1])
+ggplot(filter(plotdata,Estimate=="Employment for all employees" & Ref_Date==max(Ref_Date)),
+       aes(reorder(NAICS,change),change)) +
+  geom_bar(stat="identity",fill="dodgerblue3") +
+  geom_hline(yintercept=0,size=1)+
+  coord_flip() +
+  mythemebarflip+
+  scale_y_continuous(breaks=pretty_breaks(n=6),label=comma)+
+  labs(x="",y="Number of Payroll Jobs",
+       title=paste("Change in Alberta's Payroll Jobs, Feb 2020 to",thismonth),
+       subtitle="Source: Statistics Canada data table 14-10-0223.",caption="Graph by @trevortombe.")
+
+plotdata<-as_tibble(seph) %>%
   filter(GEO=="Alberta" & Ref_Date>="Jan 2016" & 
            !(NAICS %in% c("Industrial aggregate including unclassified businesses",
                           "Industrial aggregate excluding unclassified businesses",
@@ -325,7 +360,7 @@ ggplot(test2, aes(x=start, xend=end, y=NAICS, group=NAICS)) +
   labs(x="Share of Total Payroll Employment (%)", 
        y=NULL, 
        title="The Changing Composition of Alberta's Jobs", 
-       subtitle="Source: Own calculations from Statistics Canada data table 14-10-0223. The recession started Oct 2014.",
+       subtitle="Source: Own calculations from Statistics Canada data table 14-10-0223.",
        caption="Graph by @trevortombe")
 ```
 
